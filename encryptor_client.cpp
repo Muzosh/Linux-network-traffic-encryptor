@@ -22,8 +22,8 @@
 #include <cryptopp/dh.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <openssl-3.2.1/ssl.h>
-#include <openssl-3.2.1/err.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #define PORT 62000
 #define KEYPORT 61000
