@@ -758,7 +758,8 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
     CryptoPP::SHA3_256 hash;
     CryptoPP::SHAKE128 shake128_hash;
     byte digest[CryptoPP::SHA3_256::DIGESTSIZE];
-    SecByteBlock key(AES::MAX_KEYLENGTH);
+    SecByteBlock sec_key(AES::MAX_KEYLENGTH);
+
     counter++;
     // get system time and convert it to string
     time_t now = time(0);
@@ -766,6 +767,12 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
     string time = std::to_string(ltm->tm_hour) + std::to_string(ltm->tm_min) + std::to_string(ltm->tm_sec);
     string salt = time + std::to_string(counter);
     salt = "wBvFh#7QjH8tLpNkRsYx1z3uA2s4Xc6WvBnMlKjIgFhDdSfGhJkLpOeQrTbUyVtXyZaCxwVuNmLkIjHgFdDsAaSdFgHjKlQwErTyUiOpAsDfGhJkLpOeRtYuIwQeRtYuI";
+
+    if (qkd_ip.empty())
+    {
+    const char* rekey = "Rekey";
+    send(client_fd, rekey, strlen(rekey), 0);
+    }
 
     string pqc_key = get_pqckey(client_fd);
     cout << "PQC key: " << pqc_key << endl;
@@ -804,6 +811,7 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         encode_key.Put(digest, sizeof(digest));
         encode_key.MessageEnd();
 
+<<<<<<< HEAD
         /* cout << "Key established: " << output_key << endl;
          int x = 0;
          for (unsigned int i = 0; i < output_key.length(); i += 2)
@@ -813,12 +821,22 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
              x++;
          }
          */
+=======
+        cout << "Key established: " << output_key << endl;
+        int x = 0;
+        for (unsigned int i = 0; i < output_key.length(); i += 2)
+        {
+            string bytestring = output_key.substr(i, 2);
+            sec_key[x] = (char)strtol(bytestring.c_str(), NULL, 16);
+            x++;
+        }
+        
+>>>>>>> 1d1cca24aee1eeb5dbc0387acebaac1580d36696
         cout << "Kyber cipher data: " << kyber_cipher_data_str << endl;
         cout << "XY coordinates: " << xy_str << endl;
 
         // send(client_fd, output_key.c_str(), output_key.length(), 0);
 
-        CryptoPP::SecByteBlock sec_key(reinterpret_cast<const byte *>(output_key.data()), output_key.size());
         return sec_key;
     }
     else
@@ -869,16 +887,20 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         for (unsigned int i = 0; i < output_key.length(); i += 2)
         {
             string bytestring = output_key.substr(i, 2);
-            key[x] = (char)strtol(bytestring.c_str(), NULL, 16);
+            sec_key[x] = (char)strtol(bytestring.c_str(), NULL, 16);
             x++;
         }
 
         cout << "Key established: " << output_key << endl;
+<<<<<<< HEAD
         // take the first 32 signs
         output_key = output_key.substr(0, 32);
         CryptoPP::SecByteBlock sec_key(reinterpret_cast<const byte *>(output_key.data()), output_key.size());
         // output length of sec_key
         cout << "Sec key length: " << sec_key.size() << endl;
+=======
+
+>>>>>>> 1d1cca24aee1eeb5dbc0387acebaac1580d36696
         return sec_key;
     }
 }
