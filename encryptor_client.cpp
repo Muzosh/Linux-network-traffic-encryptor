@@ -20,6 +20,13 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cryptopp/dh.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+#define SERVER_CA_CERT "ca.crt" // Cesta k certifikátu certifikační autority serveru
+#define CLIENT_CERT "client.crt" // Cesta k certifikátu klienta
+#define CLIENT_KEY "client.key" // Cesta k soukromému klíči klienta
+
 #define PORT 62000
 #define KEYPORT 61000
 #define MAXLINE 1500
@@ -84,6 +91,102 @@ using CryptoPP::AES;
 using CryptoPP::GCM;
 
 #include "assert.h"
+
+void certificate_authentication(){
+    SSL_CTX *ctx;
+    SSL *ssl;
+    BIO *acc, *client;
+
+    // Inicializace OpenSSL
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+
+    // Vytvoření kontextu SSL/TLS
+    ctx = SSL_CTX_new(SSLv23_server_method());
+    if (ctx == NULL) {
+        printf("Chyba při vytváření kontextu.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Nastavení certifikátu serveru
+    if (SSL_CTX_use_certificate_file(ctx, CLIENT_CERT, SSL_FILETYPE_PEM) <= 0) {
+        printf("Chyba při načítání certifikátu serveru.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Nastavení serverového klíče
+    if (SSL_CTX_use_PrivateKey_file(ctx, CLIENT_KEY, SSL_FILETYPE_PEM) <= 0) {
+        printf("Chyba při načítání serverového klíče.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Nastavení certifikátu certifikační autority serveru pro ověření klientova certifikátu
+    if (SSL_CTX_load_verify_locations(ctx, SERVER_CA_CERT, NULL) != 1) {
+        printf("Chyba při načítání certifikátu certifikační autority klienta.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Vytvoření nového acceptor BIO pro naslouchání na portu 443
+    acc = BIO_new_accept("443");
+    if (acc == NULL) {
+        printf("Chyba při vytváření acceptor BIO.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Přidání acceptor BIO do kontextu
+    if (BIO_do_accept(acc) <= 0) {
+        printf("Chyba při nastavení acceptor BIO.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Hlavní smyčka pro přijímání připojení
+    while (1) {
+        if (BIO_do_accept(acc) <= 0) {
+            printf("Chyba při přijímání spojení.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Získání klientovského BIO
+        client = BIO_pop(acc);
+        if (client == NULL) {
+            printf("Chyba při získávání klientovského BIO.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Vytvoření SSL spojení
+        ssl = SSL_new(ctx);
+        if (ssl == NULL) {
+            printf("Chyba při vytváření SSL spojení.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Připojení SSL spojení k klientovskému BIO
+        SSL_set_bio(ssl, client, client);
+
+        // Ustanovení SSL spojení
+        if (SSL_accept(ssl) <= 0) {
+            printf("Chyba při ustanovení SSL spojení.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Ověření klientova certifikátu
+        if (SSL_get_verify_result(ssl) != X509_V_OK) {
+            printf("Chyba při ověření klientova certifikátu.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Komunikace - zde můžete provádět posílání a příjem dat
+
+        // Uvolnění SSL spojení
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+    }
+
+    // Uvolnění zdrojů
+    BIO_free(acc);
+    SSL_CTX_free(ctx);
+}
 
 string convertToString(char *a)
 {
@@ -545,6 +648,14 @@ int main(int argc, char *argv[])
         help();
         return 0;
     }
+
+    if (certificate_authentication() == -1)
+    {
+        cout << "Certificate authentication failed" << endl;
+    }else{
+        cout << "Certificate authentication successful" << endl;
+    }
+    
 
     // First argument - IP of gateway in server mode
     const char *srv_ip = argv[1];
