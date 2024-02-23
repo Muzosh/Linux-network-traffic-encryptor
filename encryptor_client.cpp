@@ -20,10 +20,19 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cryptopp/dh.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <openssl-3.2.1/ssl.h>
+#include <openssl-3.2.1/err.h>
+
 #define PORT 62000
 #define KEYPORT 61000
 #define MAXLINE 1500
 #define TAG_SIZE 16
+
+#define CLIENT_CERT "client.crt"
+#define CLIENT_KEY "client.key"
+#define SERVER_CA_CERT "ca.crt"
 
 #include <iostream>
 using std::cerr;
@@ -91,6 +100,88 @@ string xy_str;
 string kyber_cipher_data_str;
 string qkd_parameter;
 int counter = 0;
+
+void cert_authenticate()
+{
+    SSL_CTX *ctx;
+    SSL *ssl;
+    BIO *bio;
+
+    // Inicializace OpenSSL
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+
+    // Vytvoření kontextu SSL/TLS
+    ctx = SSL_CTX_new(SSLv23_client_method());
+    if (ctx == NULL)
+    {
+        printf("Chyba při vytváření kontextu.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Nastavení certifikátu certifikační autority serveru pro ověření serverového certifikátu
+    if (SSL_CTX_load_verify_locations(ctx, SERVER_CA_CERT, NULL) != 1)
+    {
+        printf("Chyba při načítání certifikátu certifikační autority serveru.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Načtení certifikátu a soukromého klíče klienta
+    if (SSL_CTX_use_certificate_file(ctx, CLIENT_CERT, SSL_FILETYPE_PEM) != 1)
+    {
+        printf("Chyba při načítání certifikátu klienta.\n");
+        exit(EXIT_FAILURE);
+    }
+    if (SSL_CTX_use_PrivateKey_file(ctx, CLIENT_KEY, SSL_FILETYPE_PEM) != 1)
+    {
+        printf("Chyba při načítání soukromého klíče klienta.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Vytvoření SSL spojení
+    ssl = SSL_new(ctx);
+    if (ssl == NULL)
+    {
+        printf("Chyba při vytváření SSL spojení.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Vytvoření BIO objektu pro komunikaci
+    bio = BIO_new_ssl_connect(ctx);
+    if (bio == NULL)
+    {
+        printf("Chyba při vytváření BIO objektu.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Nastavení hostname
+    BIO_set_conn_hostname(bio, "example.com:443");
+
+    // Připojení SSL spojení k BIO
+    BIO_get_ssl(bio, &ssl);
+    SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+
+    // Otevření spojení
+    if (BIO_do_connect(bio) <= 0)
+    {
+        printf("Chyba při navazování spojení.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Ověření serverového certifikátu
+    if (SSL_get_verify_result(ssl) != X509_V_OK)
+    {
+        printf("Chyba při ověření serverového certifikátu.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Komunikace - zde můžete provádět posílání a příjem dat
+
+    // Uvolnění zdrojů
+    BIO_free_all(bio);
+    SSL_CTX_free(ctx);
+}
 
 string convertToString(char *a)
 {
@@ -625,36 +716,36 @@ string xorStrings(const string &str1, const string &str2)
     return result;
 }
 
-string get_qkdkey(string qkd_ip, int client_fd){
+string get_qkdkey(string qkd_ip, int client_fd)
+{
     CryptoPP::SHA3_256 hash;
-        CryptoPP::SHAKE128 shake128_hash;
+    CryptoPP::SHAKE128 shake128_hash;
 
-        system(("./sym-ExpQKD 'client' " + qkd_ip).c_str());
+    system(("./sym-ExpQKD 'client' " + qkd_ip).c_str());
 
-        std::ifstream t("key");
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        // buffer to string
-        string buffer_str = buffer.str();
+    std::ifstream t("key");
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    // buffer to string
+    string buffer_str = buffer.str();
 
-        std::ifstream s("keyID");
-        std::stringstream bufferTCP;
-        bufferTCP << s.rdbuf();
-        // bufferTCP to string
-        string bufferTCP_str = bufferTCP.str();
-        cout << "KeyID: " << bufferTCP_str << endl;
+    std::ifstream s("keyID");
+    std::stringstream bufferTCP;
+    bufferTCP << s.rdbuf();
+    // bufferTCP to string
+    string bufferTCP_str = bufferTCP.str();
+    cout << "KeyID: " << bufferTCP_str << endl;
 
-        send(client_fd, bufferTCP_str.c_str(), bufferTCP_str.length(), 0);
-        // hash content of bufferTCP with SHAKE128
-        shake128_hash.Update((const byte *)bufferTCP.str().c_str(), bufferTCP.str().length());
-        string pom_param;
-        shake128_hash.TruncatedFinal((byte *)pom_param.c_str(), 216);
-        qkd_parameter = pom_param + bufferTCP.str().substr(0, 216);
-        cout << "QKD key established:" << buffer_str << endl;
+    send(client_fd, bufferTCP_str.c_str(), bufferTCP_str.length(), 0);
+    // hash content of bufferTCP with SHAKE128
+    shake128_hash.Update((const byte *)bufferTCP.str().c_str(), bufferTCP.str().length());
+    string pom_param;
+    shake128_hash.TruncatedFinal((byte *)pom_param.c_str(), 216);
+    qkd_parameter = pom_param + bufferTCP.str().substr(0, 216);
+    cout << "QKD key established:" << buffer_str << endl;
 
-        return buffer_str;
+    return buffer_str;
 }
-
 
 /*
    Rekeying - client mode
@@ -713,19 +804,19 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         encode_key.Put(digest, sizeof(digest));
         encode_key.MessageEnd();
 
-       /* cout << "Key established: " << output_key << endl;
-        int x = 0;
-        for (unsigned int i = 0; i < output_key.length(); i += 2)
-        {
-            string bytestring = output_key.substr(i, 2);
-            key[x] = (char)strtol(bytestring.c_str(), NULL, 16);
-            x++;
-        }
-        */
+        /* cout << "Key established: " << output_key << endl;
+         int x = 0;
+         for (unsigned int i = 0; i < output_key.length(); i += 2)
+         {
+             string bytestring = output_key.substr(i, 2);
+             key[x] = (char)strtol(bytestring.c_str(), NULL, 16);
+             x++;
+         }
+         */
         cout << "Kyber cipher data: " << kyber_cipher_data_str << endl;
         cout << "XY coordinates: " << xy_str << endl;
 
-        //send(client_fd, output_key.c_str(), output_key.length(), 0);
+        // send(client_fd, output_key.c_str(), output_key.length(), 0);
 
         CryptoPP::SecByteBlock sec_key(reinterpret_cast<const byte *>(output_key.data()), output_key.size());
         return sec_key;
@@ -733,7 +824,6 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
     else
     {
 
-        
         // all parameters set, starting to creating hybrid key
         string key_one = hmac_hashing(salt, pqc_key);
         string key_two = hmac_hashing(salt, ecdh_key);
@@ -784,10 +874,10 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         }
 
         cout << "Key established: " << output_key << endl;
-        //take the first 32 signs
+        // take the first 32 signs
         output_key = output_key.substr(0, 32);
         CryptoPP::SecByteBlock sec_key(reinterpret_cast<const byte *>(output_key.data()), output_key.size());
-        //output length of sec_key
+        // output length of sec_key
         cout << "Sec key length: " << sec_key.size() << endl;
         return sec_key;
     }
@@ -801,6 +891,14 @@ int main(int argc, char *argv[])
         help();
         return 0;
     }*/
+
+    if (cert_authenticate() == -1)
+    {
+        cout << "Authentication of certificates failed" << endl;
+        return 0;
+    }
+
+    cout << "Authentication of certificates successful" << endl;
 
     // First argument - IP of gateway in server mode
     const char *srv_ip = argv[1];
@@ -844,7 +942,6 @@ int main(int argc, char *argv[])
 
         // Create TCP connection
         int client_fd = tcp_connection(srv_ip);
-        
 
         // TCP error propagation
         if (client_fd == -1)
@@ -876,9 +973,9 @@ int main(int argc, char *argv[])
             cout << "Establishing new key" << endl;
             if (argv[2] != NULL)
             {
-            bufferTCP_str = get_qkdkey(qkd_ip, client_fd);
+                bufferTCP_str = get_qkdkey(qkd_ip, client_fd);
             }
-            
+
             key = rekey_cli(client_fd, qkd_ip, srv_ip, bufferTCP_str);
             ref = time(NULL);
             fcntl(client_fd, F_SETFL, O_NONBLOCK);

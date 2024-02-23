@@ -29,6 +29,10 @@ unzip -aoq cryptopp870.zip -d cryptopp
 (cd cryptopp && sudo make)
 (cd cryptopp && sudo make install)
 
+# Install OpenSSL library
+sudo apt update
+sudo apt install openssl -y
+
 sudo ip tuntap add name tun0 mode tun
 sudo ip link set tun0 up
 sudo ip addr add 192.168.1.1 peer 192.168.1.2 dev tun0
