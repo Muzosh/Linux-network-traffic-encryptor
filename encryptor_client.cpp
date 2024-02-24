@@ -156,7 +156,7 @@ void cert_authenticate()
     }
 
     // Nastavení hostname
-    BIO_set_conn_hostname(bio, "example.com:443");
+    BIO_set_conn_hostname(bio, "10.0.2.7:443");
 
     // Připojení SSL spojení k BIO
     BIO_get_ssl(bio, &ssl);
