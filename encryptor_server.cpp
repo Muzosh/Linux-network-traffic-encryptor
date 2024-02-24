@@ -887,16 +887,7 @@ int main(int argc, char *argv[])
         return 0;
     }*/
 
-    try
-    {
-        cert_authenticate();
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Certification authentication failed" << '\n';
-    }
-
-    cout << "Certification authentication successful" << endl;
+   
 
     string qkd_ip = "";
     // First argument - QKD server IP address
@@ -907,6 +898,17 @@ int main(int argc, char *argv[])
     }
 
     //******** SERVER MODE: ********//
+
+     try
+    {
+        cert_authenticate();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Certification authentication failed" << '\n';
+    }
+
+    cout << "Certification authentication successful" << endl;
 
     // Virtual interface access
     int tundesc;
