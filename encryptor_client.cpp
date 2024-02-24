@@ -101,7 +101,7 @@ string kyber_cipher_data_str;
 string qkd_parameter;
 int counter = 0;
 
-void cert_authenticate()
+void cert_authenticate(const char *srv_ip)
 {
     SSL_CTX *ctx;
     SSL *ssl;
@@ -156,7 +156,7 @@ void cert_authenticate()
     }
 
     // Nastavení hostname
-    BIO_set_conn_hostname(bio, "10.0.2.7:443");
+    BIO_set_conn_hostname(bio, srv_ip + ":443");
 
     // Připojení SSL spojení k BIO
     BIO_get_ssl(bio, &ssl);
@@ -910,16 +910,7 @@ int main(int argc, char *argv[])
         return 0;
     }*/
 
-    try
-    {
-        cert_authenticate();
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Certification authentication failed" << '\n';
-    }
-
-    cout << "Certification authentication successful" << endl;
+  
 
     // First argument - IP of gateway in server mode
     const char *srv_ip = argv[1];
@@ -932,6 +923,17 @@ int main(int argc, char *argv[])
         qkd_ip = argv[2];
     }
     //******** CLIENT MODE: ********//
+
+      try
+    {
+        cert_authenticate(srv_ip);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Certification authentication failed" << '\n';
+    }
+
+    cout << "Certification authentication successful" << endl;
 
     // Virtual interface access
     int tundesc;
