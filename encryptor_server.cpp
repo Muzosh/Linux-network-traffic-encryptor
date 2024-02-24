@@ -31,8 +31,8 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include </usr/include/openssl/ssl.h>
-#include </usr/include/openssl/ssl.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #define PORT 62000
 #define KEYPORT 61000
