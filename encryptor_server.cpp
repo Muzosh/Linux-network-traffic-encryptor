@@ -160,7 +160,7 @@ void cert_authenticate()
     }
 
     // Hlavní smyčka pro přijímání připojení
-    while (counter < 10)
+    while (counter < 1)
     {
         if (BIO_do_accept(acc) <= 0)
         {
