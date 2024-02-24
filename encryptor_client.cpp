@@ -157,7 +157,7 @@ void cert_authenticate(const char *srv_ip)
 
     string hostname = srv_ip + string(":") + string("443");
     // Nastavení hostname
-    BIO_set_conn_hostname(bio, );
+    BIO_set_conn_hostname(bio, hostname);
 
     // Připojení SSL spojení k BIO
     BIO_get_ssl(bio, &ssl);
