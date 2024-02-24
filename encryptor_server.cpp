@@ -886,13 +886,16 @@ int main(int argc, char *argv[])
         return 0;
     }*/
 
-    if (cert_authenticate() == -1)
+    try
     {
-        cout << "Authentication of certificates failed" << endl;
-        return 0;
+        cert_authenticate();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Certification authentication failed" << '\n';
     }
 
-    cout << "Authentication of certificates successful" << endl;
+    cout << "Certification authentication successful" << endl;
 
     string qkd_ip = "";
     // First argument - QKD server IP address
@@ -947,7 +950,7 @@ int main(int argc, char *argv[])
         int sockfd = udp_connection(&servaddr, &cliaddr, &len);
 
         char bufferTCP[MAXLINE] = {0};
-        
+
         read(new_socket, bufferTCP, MAXLINE);
 
         if (argv[1] != NULL)

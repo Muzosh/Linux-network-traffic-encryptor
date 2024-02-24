@@ -770,8 +770,8 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
 
     if (qkd_ip.empty())
     {
-    const char* rekey = "Rekey";
-    send(client_fd, rekey, strlen(rekey), 0);
+        const char *rekey = "Rekey";
+        send(client_fd, rekey, strlen(rekey), 0);
     }
 
     string pqc_key = get_pqckey(client_fd);
@@ -811,7 +811,6 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         encode_key.Put(digest, sizeof(digest));
         encode_key.MessageEnd();
 
-<<<<<<< HEAD
         /* cout << "Key established: " << output_key << endl;
          int x = 0;
          for (unsigned int i = 0; i < output_key.length(); i += 2)
@@ -821,7 +820,7 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
              x++;
          }
          */
-=======
+
         cout << "Key established: " << output_key << endl;
         int x = 0;
         for (unsigned int i = 0; i < output_key.length(); i += 2)
@@ -830,8 +829,7 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
             sec_key[x] = (char)strtol(bytestring.c_str(), NULL, 16);
             x++;
         }
-        
->>>>>>> 1d1cca24aee1eeb5dbc0387acebaac1580d36696
+
         cout << "Kyber cipher data: " << kyber_cipher_data_str << endl;
         cout << "XY coordinates: " << xy_str << endl;
 
@@ -892,15 +890,13 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         }
 
         cout << "Key established: " << output_key << endl;
-<<<<<<< HEAD
+
         // take the first 32 signs
         output_key = output_key.substr(0, 32);
         CryptoPP::SecByteBlock sec_key(reinterpret_cast<const byte *>(output_key.data()), output_key.size());
         // output length of sec_key
         cout << "Sec key length: " << sec_key.size() << endl;
-=======
 
->>>>>>> 1d1cca24aee1eeb5dbc0387acebaac1580d36696
         return sec_key;
     }
 }
@@ -914,13 +910,16 @@ int main(int argc, char *argv[])
         return 0;
     }*/
 
-    if (cert_authenticate() == -1)
+    try
     {
-        cout << "Authentication of certificates failed" << endl;
-        return 0;
+        cert_authenticate();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Certification authentication failed" << '\n';
     }
 
-    cout << "Authentication of certificates successful" << endl;
+    cout << "Certification authentication successful" << endl;
 
     // First argument - IP of gateway in server mode
     const char *srv_ip = argv[1];
