@@ -160,7 +160,7 @@ void cert_authenticate()
     }
 
     // Hlavní smyčka pro přijímání připojení
-    while (1)
+    while (counter < 10)
     {
         if (BIO_do_accept(acc) <= 0)
         {
@@ -206,6 +206,7 @@ void cert_authenticate()
         // Uvolnění SSL spojení
         SSL_shutdown(ssl);
         SSL_free(ssl);
+        counter++;
     }
 
     // Uvolnění zdrojů
