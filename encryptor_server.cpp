@@ -110,106 +110,103 @@ void cert_authenticate()
     SSL *ssl;
     BIO *acc, *client;
 
-    // Inicializace OpenSSL
+    // Initialize OpenSSL
     SSL_library_init();
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
-    // Vytvoření kontextu SSL/TLS
+    // Create a new SSL context
     ctx = SSL_CTX_new(SSLv23_server_method());
     if (ctx == NULL)
     {
-        printf("Chyba při vytváření kontextu.\n");
+        printf("Error while creating context\n");
         exit(EXIT_FAILURE);
     }
 
-    // Nastavení certifikátu serveru
+    // Set the local certificate from CertFile
     if (SSL_CTX_use_certificate_file(ctx, SERVER_CERT, SSL_FILETYPE_PEM) <= 0)
     {
-        printf("Chyba při načítání certifikátu serveru.\n");
+        printf("Error while loading server certificate.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Nastavení serverového klíče
+    // Load the private key
     if (SSL_CTX_use_PrivateKey_file(ctx, SERVER_KEY, SSL_FILETYPE_PEM) <= 0)
     {
-        printf("Chyba při načítání serverového klíče.\n");
+        printf("Error while loading server key.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Nastavení certifikátu certifikační autority klienta pro ověření klientova certifikátu
+    // Load the CA certificate
     if (SSL_CTX_load_verify_locations(ctx, CLIENT_CA_CERT, NULL) != 1)
     {
-        printf("Chyba při načítání certifikátu certifikační autority klienta.\n");
+        printf("Error loading a client CA certificate.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Vytvoření nového acceptor BIO pro naslouchání na portu 443
+    // Create BIO acceptor
     acc = BIO_new_accept("443");
     if (acc == NULL)
     {
-        printf("Chyba při vytváření acceptor BIO.\n");
+        printf("Error creating BIO acceptor.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Přidání acceptor BIO do kontextu
+    // Add acceptor to context
     if (BIO_do_accept(acc) <= 0)
     {
-        printf("Chyba při nastavení acceptor BIO.\n");
+        printf("Error adding acceptor to context.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Hlavní smyčka pro přijímání připojení
+    
     while (counter < 1)
     {
         if (BIO_do_accept(acc) <= 0)
         {
-            printf("Chyba při přijímání spojení.\n");
+            printf("Error while receiving.\n");
             exit(EXIT_FAILURE);
         }
 
-        // Získání klientovského BIO
+        // Acquiering client BIO
         client = BIO_pop(acc);
         if (client == NULL)
         {
-            printf("Chyba při získávání klientovského BIO.\n");
+            printf("Error acquiring client BIO.\n");
             exit(EXIT_FAILURE);
         }
 
-        // Vytvoření SSL spojení
+        // Create new SSL connection state
         ssl = SSL_new(ctx);
         if (ssl == NULL)
         {
-            printf("Chyba při vytváření SSL spojení.\n");
+            printf("Error while creating SSL connection.\n");
             exit(EXIT_FAILURE);
         }
 
-        // Připojení SSL spojení k klientovskému BIO
+        // Connect the SSL object with the BIO
         SSL_set_bio(ssl, client, client);
 
-        // Ustanovení SSL spojení
+        // Establish the SSL connection
         if (SSL_accept(ssl) <= 0)
         {
-            printf("Chyba při ustanovení SSL spojení.\n");
+            printf("Error when establishing SSL connection.\n");
             exit(EXIT_FAILURE);
         }
 
-        // Ověření klientova certifikátu
+        // Veryfying the certificate
         if (SSL_get_verify_result(ssl) != X509_V_OK)
         {
-            printf("Chyba při ověření klientova certifikátu.\n");
+            printf("Error while verifying the certificate.\n");
             exit(EXIT_FAILURE);
         }
 
-        // Komunikace - zde můžete provádět posílání a příjem dat
-
-        // Uvolnění SSL spojení
+        // Shutdown the SSL connection
         SSL_shutdown(ssl);
         SSL_free(ssl);
         counter++;
     }
 
-    // Uvolnění zdrojů
     BIO_free(acc);
     SSL_CTX_free(ctx);
 }

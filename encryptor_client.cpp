@@ -107,79 +107,77 @@ void cert_authenticate(const char *srv_ip)
     SSL *ssl;
     BIO *bio;
 
-    // Inicializace OpenSSL
+    // Initialize OpenSSL
     SSL_library_init();
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
-    // Vytvoření kontextu SSL/TLS
+    // Create SSL context
     ctx = SSL_CTX_new(SSLv23_client_method());
     if (ctx == NULL)
     {
-        printf("Chyba při vytváření kontextu.\n");
+        printf("Error while creating context.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Nastavení certifikátu certifikační autority serveru pro ověření serverového certifikátu
+    // Configure SSL context to use the certificate of the CA
     if (SSL_CTX_load_verify_locations(ctx, SERVER_CA_CERT, NULL) != 1)
     {
-        printf("Chyba při načítání certifikátu certifikační autority serveru.\n");
+        printf("Error while loading a server CA certificate.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Načtení certifikátu a soukromého klíče klienta
+    // Loading client certificate and private key
     if (SSL_CTX_use_certificate_file(ctx, CLIENT_CERT, SSL_FILETYPE_PEM) != 1)
     {
-        printf("Chyba při načítání certifikátu klienta.\n");
+        printf("Error loading client certificate.\n");
         exit(EXIT_FAILURE);
     }
     if (SSL_CTX_use_PrivateKey_file(ctx, CLIENT_KEY, SSL_FILETYPE_PEM) != 1)
     {
-        printf("Chyba při načítání soukromého klíče klienta.\n");
+        printf("Error while loading private key of client.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Vytvoření SSL spojení
+    // Create SSL connection
     ssl = SSL_new(ctx);
     if (ssl == NULL)
     {
-        printf("Chyba při vytváření SSL spojení.\n");
+        printf("Error while creating SSL connection.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Vytvoření BIO objektu pro komunikaci
+    // Create BIO object
     bio = BIO_new_ssl_connect(ctx);
     if (bio == NULL)
     {
-        printf("Chyba při vytváření BIO objektu.\n");
+        printf("Error while creating BIO object.\n");
         exit(EXIT_FAILURE);
     }
 
     string hostname = srv_ip + string(":") + string("443");
-    // Nastavení hostname
+    // Set hostname
     BIO_set_conn_hostname(bio, hostname.c_str());
 
-    // Připojení SSL spojení k BIO
+    // Connect BIO object to SSL
     BIO_get_ssl(bio, &ssl);
     SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 
-    // Otevření spojení
+    // Open connection
     if (BIO_do_connect(bio) <= 0)
     {
-        printf("Chyba při navazování spojení.\n");
+        printf("Connection error.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Ověření serverového certifikátu
+    // Validate server certificate
     if (SSL_get_verify_result(ssl) != X509_V_OK)
     {
-        printf("Chyba při ověření serverového certifikátu.\n");
+        printf("Error while verifying the certificate.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Komunikace - zde můžete provádět posílání a příjem dat
 
-    // Uvolnění zdrojů
     BIO_free_all(bio);
     SSL_CTX_free(ctx);
 }
