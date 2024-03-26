@@ -174,6 +174,7 @@ void cert_authenticate(const char *srv_ip)
     if (SSL_get_verify_result(ssl) != X509_V_OK)
     {
         printf("Error while verifying the certificate.\n");
+        printf("Error: %s\n", X509_verify_cert_error_string(SSL_get_verify_result(ssl)));
         exit(EXIT_FAILURE);
     }
 
