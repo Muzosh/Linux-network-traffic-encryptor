@@ -155,7 +155,7 @@ void cert_authenticate(const char *srv_ip)
         exit(EXIT_FAILURE);
     }
 
-    string hostname = srv_ip + string(":") + string("443");
+    string hostname = srv_ip + string(":") + string("61000");
     // Set hostname
     BIO_set_conn_hostname(bio, hostname.c_str());
 
