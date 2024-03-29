@@ -122,6 +122,13 @@ void cert_authenticate()
         printf("Error while creating context\n");
         exit(EXIT_FAILURE);
     }
+    
+     // Load the CA certificate
+    if (SSL_CTX_load_verify_locations(ctx, CLIENT_CA_CERT, NULL) != 1)
+    {
+        printf("Error loading a client CA certificate.\n");
+        exit(EXIT_FAILURE);
+    }
 
     // Set the local certificate from CertFile
     if (SSL_CTX_use_certificate_file(ctx, SERVER_CERT, SSL_FILETYPE_PEM) <= 0)
@@ -137,12 +144,6 @@ void cert_authenticate()
         exit(EXIT_FAILURE);
     }
 
-    // Load the CA certificate
-    if (SSL_CTX_load_verify_locations(ctx, CLIENT_CA_CERT, NULL) != 1)
-    {
-        printf("Error loading a client CA certificate.\n");
-        exit(EXIT_FAILURE);
-    }
 
     // Create BIO acceptor
     acc = BIO_new_accept("61000");
