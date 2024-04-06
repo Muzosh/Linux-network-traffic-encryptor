@@ -122,8 +122,8 @@ void cert_authenticate()
         printf("Error while creating context\n");
         exit(EXIT_FAILURE);
     }
-    
-     // Load the CA certificate
+
+    // Load the CA certificate
     if (SSL_CTX_load_verify_locations(ctx, CLIENT_CA_CERT, NULL) != 1)
     {
         printf("Error loading a client CA certificate.\n");
@@ -144,7 +144,6 @@ void cert_authenticate()
         exit(EXIT_FAILURE);
     }
 
-
     // Create BIO acceptor
     acc = BIO_new_accept("61000");
     if (acc == NULL)
@@ -160,7 +159,6 @@ void cert_authenticate()
         exit(EXIT_FAILURE);
     }
 
-    
     while (counter < 1)
     {
         if (BIO_do_accept(acc) <= 0)
@@ -885,8 +883,6 @@ int main(int argc, char *argv[])
         return 0;
     }*/
 
-   
-
     string qkd_ip = "";
     // First argument - QKD server IP address
     if (argv[1] != NULL)
@@ -897,9 +893,9 @@ int main(int argc, char *argv[])
 
     //******** SERVER MODE: ********//
 
-     try
+    try
     {
-      //  cert_authenticate();
+        //  cert_authenticate();
     }
     catch (const std::exception &e)
     {
@@ -949,7 +945,7 @@ int main(int argc, char *argv[])
         // string pqc_key = get_pqckey(new_socket);
 
         // UDP connection create
-        //int sockfd = tcp_connection(&server_fd_key);
+        // int sockfd = tcp_connection(&server_fd_key);
 
         char bufferTCP[MAXLINE] = {0};
 
@@ -966,7 +962,7 @@ int main(int argc, char *argv[])
         // Server connection details
         // get_qkdkey(qkd_ip, bufferTCP);
         // Combine PQC a QKD key into hybrid key for AES
-        //set socket to blocking mode
+        // set socket to blocking mode
         fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
         key = rekey_srv(new_socket, qkd_ip);
         fcntl(new_socket, F_SETFL, O_NONBLOCK);
@@ -991,9 +987,9 @@ int main(int argc, char *argv[])
             status = read(new_socket, bufferTCP, MAXLINE);
             // Establish new hybrid key, if key_ID is recieved
             if (status > 0)
-            {   
-                //fcntl(sockfd, F_SETFL, O_NONBLOCK);
-                //fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
+            {
+                // fcntl(sockfd, F_SETFL, O_NONBLOCK);
+                fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
 
                 if (argv[1] != NULL)
                 {
@@ -1003,9 +999,9 @@ int main(int argc, char *argv[])
                 key = rekey_srv(new_socket, qkd_ip);
                 // set socket to non-blocking mode
                 // Set TCP socket to NON-blocking mode
+                fcntl(new_socket, F_SETFL, O_NONBLOCK);
             }
-           // fcntl(new_socket, F_SETFL, O_NONBLOCK);
-           // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
+            // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
             // Create runnable thread if there are data available either on tun interface or UDP socket
             if (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(new_socket, servaddr, &key, tundesc))
             {
@@ -1042,7 +1038,7 @@ int main(int argc, char *argv[])
             }
         }
         // Clean sockets termination
-        //close(sockfd);
+        // close(sockfd);
         close(new_socket);
         shutdown(server_fd, SHUT_RDWR);
     }
