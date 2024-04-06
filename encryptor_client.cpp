@@ -1002,7 +1002,7 @@ int main(int argc, char *argv[])
             {
                 bufferTCP_str = get_qkdkey(qkd_ip, client_fd);
             }
-
+            status = 1;
             key = rekey_cli(client_fd, qkd_ip, srv_ip, bufferTCP_str);
             ref = time(NULL);
             fcntl(client_fd, F_SETFL, O_NONBLOCK);
