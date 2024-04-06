@@ -991,7 +991,7 @@ int main(int argc, char *argv[])
             if (status > 0)
             {   
                 //fcntl(sockfd, F_SETFL, O_NONBLOCK);
-                fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
+                //fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
 
                 if (argv[1] != NULL)
                 {
