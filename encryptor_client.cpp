@@ -1019,7 +1019,7 @@ int main(int argc, char *argv[])
                 {
 
                     cout << time(NULL) - ref << endl;
-                    fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
+                    //fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
                     // Get TCP connection status
                     status = read(client_fd, bufferTCP, MAXLINE);
 
@@ -1031,12 +1031,12 @@ int main(int argc, char *argv[])
                     }
 
                     // Create runnable thread if there are data available either on tun interface or UDP socket
-                    if (E_N_C_R(sockfd, servaddr, &key, tundesc, len, &prng, e) || D_E_C_R(sockfd, servaddr, &key, tundesc))
+                    if (E_N_C_R(client_fd, servaddr, &key, tundesc, len, &prng, e) || D_E_C_R(client_fd, servaddr, &key, tundesc))
                     {
                         if (threads_available > 0)
                         {
                             threads_available -= 1;
-                            std::thread(thread_encrypt, sockfd, servaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
+                            std::thread(thread_encrypt, client_fd, servaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
                         }
                     }
 
@@ -1049,15 +1049,15 @@ int main(int argc, char *argv[])
                     // Help with encryption/decryption if all runnable threads are created
                     if (threads_available == 0)
                     {
-                        while (E_N_C_R(sockfd, servaddr, &key, tundesc, len, &prng, e))
+                        while (E_N_C_R(client_fd, servaddr, &key, tundesc, len, &prng, e))
                         {
                         }
 
-                        while (D_E_C_R(sockfd, servaddr, &key, tundesc))
+                        while (D_E_C_R(client_fd, servaddr, &key, tundesc))
                         {
                         }
                     }
-                    fcntl(sockfd, F_SETFL, O_NONBLOCK);
+                    //fcntl(sockfd, F_SETFL, O_NONBLOCK);
                 }
                 catch (const std::exception &e)
                 {

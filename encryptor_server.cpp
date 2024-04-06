@@ -990,7 +990,7 @@ int main(int argc, char *argv[])
             // Establish new hybrid key, if key_ID is recieved
             if (status > 0)
             {   
-                fcntl(sockfd, F_SETFL, O_NONBLOCK);
+                //fcntl(sockfd, F_SETFL, O_NONBLOCK);
                 fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
 
                 if (argv[1] != NULL)
@@ -1003,14 +1003,14 @@ int main(int argc, char *argv[])
                 // Set TCP socket to NON-blocking mode
             }
             fcntl(new_socket, F_SETFL, O_NONBLOCK);
-            fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
+           // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
             // Create runnable thread if there are data available either on tun interface or UDP socket
-            if (E_N_C_R(sockfd, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(sockfd, servaddr, &key, tundesc))
+            if (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(new_socket, servaddr, &key, tundesc))
             {
                 if (threads_available > 0)
                 {
                     threads_available -= 1;
-                    std::thread(thread_encrypt, sockfd, servaddr, cliaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
+                    std::thread(thread_encrypt, new_socket, servaddr, cliaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
                 }
             }
 
@@ -1023,11 +1023,11 @@ int main(int argc, char *argv[])
             // Help with encryption/decryption if all runnable threads are created
             if (threads_available == 0)
             {
-                while (E_N_C_R(sockfd, cliaddr, &key, tundesc, len, &prng, e))
+                while (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e))
                 {
                 }
 
-                while (D_E_C_R(sockfd, servaddr, &key, tundesc))
+                while (D_E_C_R(new_socket, servaddr, &key, tundesc))
                 {
                 }
             }
@@ -1035,7 +1035,7 @@ int main(int argc, char *argv[])
             // Send "KeepAlive" message via UDP every 60s to keep dynamic NAT translation - no need to encrypt
             if (time(NULL) - ref >= 60)
             {
-                sendto(sockfd, keepalive, strlen(keepalive), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                sendto(new_socket, keepalive, strlen(keepalive), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
                 ref = time(NULL);
             }
         }
