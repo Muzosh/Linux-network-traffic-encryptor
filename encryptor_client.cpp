@@ -988,9 +988,9 @@ int main(int argc, char *argv[])
         //   close(client_fd);
 
         // Create UDP connection
-        int sockfd = udp_connection(&servaddr, &len, srv_ip);
+        int sockfd = tcp_connection(srv_ip);
 
-        cout << "UDP connection established" << endl;
+        cout << "TCP2 connection established" << endl;
 
         // Set TCP socket to non-blocking state
 
