@@ -984,7 +984,7 @@ int main(int argc, char *argv[])
         //   close(client_fd);
 
         // Create UDP connection
-        int sockfd = tcp_connection(srv_ip);
+       // int sockfd = tcp_connection(srv_ip);
         // TCP error propagation
         if (sockfd == -1)
         {

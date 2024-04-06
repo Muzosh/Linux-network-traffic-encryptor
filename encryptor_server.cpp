@@ -949,7 +949,7 @@ int main(int argc, char *argv[])
         // string pqc_key = get_pqckey(new_socket);
 
         // UDP connection create
-        int sockfd = tcp_connection(&server_fd_key);
+        //int sockfd = tcp_connection(&server_fd_key);
 
         char bufferTCP[MAXLINE] = {0};
 
