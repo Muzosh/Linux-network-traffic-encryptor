@@ -932,7 +932,7 @@ int main(int argc, char *argv[])
 
       try
     {
-        cert_authenticate(srv_ip);
+       // cert_authenticate(srv_ip);
     }
     catch (const std::exception &e)
     {

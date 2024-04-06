@@ -899,7 +899,7 @@ int main(int argc, char *argv[])
 
      try
     {
-        cert_authenticate();
+      //  cert_authenticate();
     }
     catch (const std::exception &e)
     {
