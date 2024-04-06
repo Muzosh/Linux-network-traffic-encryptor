@@ -1051,8 +1051,8 @@ int main(int argc, char *argv[])
                     {
                     }
                 }
+                fcntl(sockfd, F_SETFL, O_NONBLOCK);
             }
-            fcntl(sockfd, F_SETFL, O_NONBLOCK);
         }
         // Clean sockets termination
         close(client_fd);
