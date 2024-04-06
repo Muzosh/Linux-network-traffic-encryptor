@@ -997,7 +997,7 @@ int main(int argc, char *argv[])
             // Establish new hybrid key
             // fcntl(client_fd, F_SETFL, 0);
             cout << "Establishing new key" << endl;
-            fcntl(client_fd, F_SETFL, fcntl(client_fd, F_GETFL, 0) & ~O_NONBLOCK);
+            //fcntl(client_fd, F_SETFL, fcntl(client_fd, F_GETFL, 0) & ~O_NONBLOCK);
             if (argv[2] != NULL)
             {
                 bufferTCP_str = get_qkdkey(qkd_ip, client_fd);
@@ -1005,7 +1005,7 @@ int main(int argc, char *argv[])
 
             key = rekey_cli(client_fd, qkd_ip, srv_ip, bufferTCP_str);
             ref = time(NULL);
-            fcntl(client_fd, F_SETFL, O_NONBLOCK);
+           // fcntl(client_fd, F_SETFL, O_NONBLOCK);
 
             cout << "New key established" << endl;
 
