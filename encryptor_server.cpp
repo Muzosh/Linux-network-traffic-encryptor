@@ -926,6 +926,7 @@ int main(int argc, char *argv[])
 
     // Variables for UDP/TCP connections
     int server_fd;
+    int server_fd_key;
     socklen_t len;
     struct sockaddr_in servaddr, cliaddr;
 
@@ -948,7 +949,7 @@ int main(int argc, char *argv[])
         // string pqc_key = get_pqckey(new_socket);
 
         // UDP connection create
-        int sockfd = tcp_connection(&server_fd);
+        int sockfd = tcp_connection(&server_fd_key);
 
         char bufferTCP[MAXLINE] = {0};
 
