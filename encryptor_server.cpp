@@ -989,7 +989,8 @@ int main(int argc, char *argv[])
             status = read(new_socket, bufferTCP, MAXLINE);
             // Establish new hybrid key, if key_ID is recieved
             if (status > 0)
-            {
+            {   
+                fcntl(sockfd, F_SETFL, O_NONBLOCK);
                 fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
 
                 if (argv[1] != NULL)
@@ -1002,6 +1003,7 @@ int main(int argc, char *argv[])
                 // Set TCP socket to NON-blocking mode
             }
             fcntl(new_socket, F_SETFL, O_NONBLOCK);
+            fcntl(sockfd, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
             // Create runnable thread if there are data available either on tun interface or UDP socket
             if (E_N_C_R(sockfd, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(sockfd, servaddr, &key, tundesc))
             {
