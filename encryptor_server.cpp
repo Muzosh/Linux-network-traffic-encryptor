@@ -967,7 +967,7 @@ int main(int argc, char *argv[])
         // get_qkdkey(qkd_ip, bufferTCP);
         // Combine PQC a QKD key into hybrid key for AES
         key = rekey_srv(new_socket, qkd_ip);
-        // fcntl(new_socket, F_SETFL, O_NONBLOCK);
+        fcntl(new_socket, F_SETFL, O_NONBLOCK);
         status = -1;
 
         // Return to "waiting on TCP connection" state if TCP connection seems dead
