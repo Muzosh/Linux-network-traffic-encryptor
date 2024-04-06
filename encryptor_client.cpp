@@ -178,7 +178,6 @@ void cert_authenticate(const char *srv_ip)
         exit(EXIT_FAILURE);
     }
 
-
     BIO_free_all(bio);
     SSL_CTX_free(ctx);
 }
@@ -892,7 +891,7 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         cout << "Key established: " << output_key << endl;
 
         // take the first 32 signs
-         output_key = output_key.substr(0, 32);
+        output_key = output_key.substr(0, 32);
         CryptoPP::SecByteBlock sec_key(output_key.size() / 2);
         // convert the hex string to bytes
         CryptoPP::HexDecoder decoder;
@@ -901,7 +900,6 @@ SecByteBlock rekey_cli(int client_fd, string qkd_ip, const char *srv_ip, string 
         decoder.Get(sec_key.BytePtr(), sec_key.size());
         // output length of sec_key
         cout << "Sec key length: " << sec_key.size() << endl;
-
 
         return sec_key;
     }
@@ -916,8 +914,6 @@ int main(int argc, char *argv[])
         return 0;
     }*/
 
-  
-
     // First argument - IP of gateway in server mode
     const char *srv_ip = argv[1];
 
@@ -930,9 +926,9 @@ int main(int argc, char *argv[])
     }
     //******** CLIENT MODE: ********//
 
-      try
+    try
     {
-       // cert_authenticate(srv_ip);
+        // cert_authenticate(srv_ip);
     }
     catch (const std::exception &e)
     {
@@ -989,7 +985,7 @@ int main(int argc, char *argv[])
 
         // Create UDP connection
         int sockfd = tcp_connection(srv_ip);
-         // TCP error propagation
+        // TCP error propagation
         if (sockfd == -1)
         {
             return -1;
@@ -1019,48 +1015,56 @@ int main(int argc, char *argv[])
             // Trigger Rekey after some period of time (10 min)
             while (time(NULL) - ref <= 20)
             {
-                cout << time(NULL) - ref << endl;
-                fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
-                // Get TCP connection status
-                status = read(client_fd, bufferTCP, MAXLINE);
-
-                // If TCP connection is dead, return to TCP connection creation
-                if (status == 0)
-                {   
-                    cout << "TCP connection dead" << endl;
-                    break;
-                }
-
-                // Create runnable thread if there are data available either on tun interface or UDP socket
-                if (E_N_C_R(sockfd, servaddr, &key, tundesc, len, &prng, e) || D_E_C_R(sockfd, servaddr, &key, tundesc))
+                try
                 {
-                    if (threads_available > 0)
+
+                    cout << time(NULL) - ref << endl;
+                    fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
+                    // Get TCP connection status
+                    status = read(client_fd, bufferTCP, MAXLINE);
+
+                    // If TCP connection is dead, return to TCP connection creation
+                    if (status == 0)
                     {
-                        threads_available -= 1;
-                        std::thread(thread_encrypt, sockfd, servaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
-                    }
-                }
-
-                // Sleep if no data are available
-                if (threads_available == threads_max)
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
-
-                // Help with encryption/decryption if all runnable threads are created
-                if (threads_available == 0)
-                {
-                    while (E_N_C_R(sockfd, servaddr, &key, tundesc, len, &prng, e))
-                    {
+                        cout << "TCP connection dead" << endl;
+                        break;
                     }
 
-                    while (D_E_C_R(sockfd, servaddr, &key, tundesc))
+                    // Create runnable thread if there are data available either on tun interface or UDP socket
+                    if (E_N_C_R(sockfd, servaddr, &key, tundesc, len, &prng, e) || D_E_C_R(sockfd, servaddr, &key, tundesc))
                     {
+                        if (threads_available > 0)
+                        {
+                            threads_available -= 1;
+                            std::thread(thread_encrypt, sockfd, servaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
+                        }
                     }
+
+                    // Sleep if no data are available
+                    if (threads_available == threads_max)
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    }
+
+                    // Help with encryption/decryption if all runnable threads are created
+                    if (threads_available == 0)
+                    {
+                        while (E_N_C_R(sockfd, servaddr, &key, tundesc, len, &prng, e))
+                        {
+                        }
+
+                        while (D_E_C_R(sockfd, servaddr, &key, tundesc))
+                        {
+                        }
+                    }
+                    fcntl(sockfd, F_SETFL, O_NONBLOCK);
                 }
-                fcntl(sockfd, F_SETFL, O_NONBLOCK);
+                catch (const std::exception &e)
+                {
+                    std::cerr << e.what() << '\n';
+                }
             }
-                cout << "Rekeying in progress" << endl;
+            cout << "Rekeying in progress" << endl;
         }
         // Clean sockets termination
         close(client_fd);
