@@ -1058,6 +1058,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 fcntl(sockfd, F_SETFL, O_NONBLOCK);
+                cout << "Rekeying in progress" << endl;
             }
         }
         // Clean sockets termination
