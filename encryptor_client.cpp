@@ -1019,6 +1019,7 @@ int main(int argc, char *argv[])
             // Trigger Rekey after some period of time (10 min)
             while (time(NULL) - ref <= 20)
             {
+                cout << time(NULL) - ref << endl;
                 fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
                 // Get TCP connection status
                 status = read(client_fd, bufferTCP, MAXLINE);
