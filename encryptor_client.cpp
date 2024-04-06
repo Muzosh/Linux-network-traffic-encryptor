@@ -1012,7 +1012,7 @@ int main(int argc, char *argv[])
             cout << "New key established" << endl;
 
             // Trigger Rekey after some period of time (10 min)
-            while (time(NULL) - ref <= 600)
+            while (time(NULL) - ref <= 20)
             {
                 fcntl(sockfd, F_SETFL, fcntl(client_fd, F_GETFL, 0) & ~O_NONBLOCK);
                 // Get TCP connection status
