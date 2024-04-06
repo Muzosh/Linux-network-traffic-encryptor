@@ -986,10 +986,7 @@ int main(int argc, char *argv[])
         // Create UDP connection
        // int sockfd = tcp_connection(srv_ip);
         // TCP error propagation
-        if (sockfd == -1)
-        {
-            return -1;
-        }
+        
 
         cout << "TCP2 connection established" << endl;
 
@@ -1068,6 +1065,6 @@ int main(int argc, char *argv[])
         }
         // Clean sockets termination
         close(client_fd);
-        close(sockfd);
+       // close(sockfd);
     }
 }

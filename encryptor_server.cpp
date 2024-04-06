@@ -1040,7 +1040,7 @@ int main(int argc, char *argv[])
             }
         }
         // Clean sockets termination
-        close(sockfd);
+        //close(sockfd);
         close(new_socket);
         shutdown(server_fd, SHUT_RDWR);
     }
