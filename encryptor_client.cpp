@@ -1019,7 +1019,7 @@ int main(int argc, char *argv[])
             // Trigger Rekey after some period of time (10 min)
             while (time(NULL) - ref <= 20)
             {
-                fcntl(sockfd, F_SETFL, fcntl(client_fd, F_GETFL, 0) & ~O_NONBLOCK);
+                fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
                 // Get TCP connection status
                 status = read(client_fd, bufferTCP, MAXLINE);
 
@@ -1058,8 +1058,8 @@ int main(int argc, char *argv[])
                     }
                 }
                 fcntl(sockfd, F_SETFL, O_NONBLOCK);
-                cout << "Rekeying in progress" << endl;
             }
+                cout << "Rekeying in progress" << endl;
         }
         // Clean sockets termination
         close(client_fd);
