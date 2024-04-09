@@ -95,11 +95,44 @@ using CryptoPP::AES;
 using CryptoPP::GCM;
 
 #include "assert.h"
+#include <mutex>
 
 string xy_str;
 string kyber_cipher_data_str;
 string qkd_parameter;
 int counter = 0;
+std::atomic<int> enc_read_order = 0;
+std::atomic<int> dec_read_order = 0;
+std::atomic<int> enc_send_order = 1;
+std::atomic<int> dec_send_order = 1;
+std::mutex m1;
+std::mutex m2;
+
+/*
+   Get encryption order after reading from tun interface
+*/
+
+int enc_get_order()
+{
+    m1.lock();
+    enc_read_order = (enc_read_order % 100000) + 1;
+    int order = enc_read_order;
+    m1.unlock();
+    return order;
+}
+
+/*
+   Get decription order after reading from socket
+*/
+
+int dec_get_order()
+{
+    m2.lock();
+    dec_read_order = (dec_read_order % 100000) + 1;
+    int order = enc_read_order;
+    m2.unlock();
+    return order;
+}
 
 void cert_authenticate(const char *srv_ip)
 {
@@ -339,16 +372,30 @@ bool D_E_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
     {
         return false;
     }
+    int order = enc_get_order();
+//    cout << "\n dec order:" << order << endl;
     try
     {
         data = decrypt_data(key, encrypted_data);
     }
     catch (...)
-    {
+    {   
+         while (order != enc_send_order)
+        {
+//            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        }
+        enc_send_order = (enc_send_order % 100000) +1;
         return true;
     }
 
+    
+
+        while (order != enc_send_order)
+    {
+//        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+    }
     write_tun(tundesc, data);
+    enc_send_order = (enc_send_order % 100000) +1;
     return true;
 }
 
@@ -368,9 +415,19 @@ bool E_N_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
     if (data.length() == 0)
     {
         return false;
-    }
+    }¨
+     int order = enc_get_order();
+//    cout << "\n enc order:" << order << endl;
     string encrypted_data = encrypt_data(key, data, prng, &e);
+    while (order != enc_send_order)
+    {
+//        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+    }
+
+
     send_encrypted(sockfd, servaddr, encrypted_data, len);
+       cout << "\n enc send order:" << enc_send_order << endl;
+    enc_send_order = (enc_send_order % 100000) + 1;
     return true;
 }
 
@@ -973,9 +1030,8 @@ int main(int argc, char *argv[])
         //   close(client_fd);
 
         // Create UDP connection
-       // int sockfd = tcp_connection(srv_ip);
+        // int sockfd = tcp_connection(srv_ip);
         // TCP error propagation
-        
 
         cout << "TCP2 connection established" << endl;
 
@@ -990,8 +1046,8 @@ int main(int argc, char *argv[])
             if (argv[2] != NULL)
             {
                 bufferTCP_str = get_qkdkey(qkd_ip, client_fd);
-            } 
-              
+            }
+
             key = rekey_cli(client_fd, qkd_ip, srv_ip, bufferTCP_str);
             ref = time(NULL);
             fcntl(client_fd, F_SETFL, O_NONBLOCK);
@@ -999,14 +1055,14 @@ int main(int argc, char *argv[])
             cout << "New key established" << endl;
 
             // Trigger Rekey after some period of time (10 min)
-            while (time(NULL) - ref <= 20)
+            while (time(NULL) - ref <= 3600)
             {
                 try
                 {
 
-                    cout << time(NULL) - ref << endl;
-                    //fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
-                    // Get TCP connection status
+                   // cout << time(NULL) - ref << endl;
+                    // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
+                    //  Get TCP connection status
                     status = read(client_fd, bufferTCP, MAXLINE);
 
                     // If TCP connection is dead, return to TCP connection creation
@@ -1043,7 +1099,7 @@ int main(int argc, char *argv[])
                         {
                         }
                     }
-                    //fcntl(sockfd, F_SETFL, O_NONBLOCK);
+                    // fcntl(sockfd, F_SETFL, O_NONBLOCK);
                 }
                 catch (const std::exception &e)
                 {
@@ -1054,6 +1110,6 @@ int main(int argc, char *argv[])
         }
         // Clean sockets termination
         close(client_fd);
-       // close(sockfd);
+        // close(sockfd);
     }
 }
