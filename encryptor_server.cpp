@@ -227,35 +227,38 @@ void cert_authenticate_online()
 void cert_authenticate_offline()
 {
 
-   
-    X509* serverCert = NULL;
-    X509* caCert = NULL;
-    X509_STORE* store = NULL;
-    X509_STORE_CTX* ctx = NULL;
+    X509 *serverCert = NULL;
+    X509 *caCert = NULL;
+    X509_STORE *store = NULL;
+    X509_STORE_CTX *ctx = NULL;
 
     // Load server's certificate
-    FILE* file = fopen(VALIDATE_CERT, "r");
-    if (!file) {
+    FILE *file = fopen(VALIDATE_CERT, "r");
+    if (!file)
+    {
         perror("Error opening server certificate file");
         exit(EXIT_FAILURE);
     }
     serverCert = PEM_read_X509(file, NULL, NULL, NULL);
     fclose(file);
-    if (!serverCert) {
+    if (!serverCert)
+    {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
     // Load CA certificate
     file = fopen(CLIENT_CA_CERT, "r");
-    if (!file) {
+    if (!file)
+    {
         perror("Error opening CA certificate file");
         X509_free(serverCert);
         exit(EXIT_FAILURE);
     }
     caCert = PEM_read_X509(file, NULL, NULL, NULL);
     fclose(file);
-    if (!caCert) {
+    if (!caCert)
+    {
         ERR_print_errors_fp(stderr);
         X509_free(serverCert);
         exit(EXIT_FAILURE);
@@ -263,7 +266,8 @@ void cert_authenticate_offline()
 
     // Create X509_STORE and add CA certificate
     store = X509_STORE_new();
-    if (!store || X509_STORE_add_cert(store, caCert) != 1) {
+    if (!store || X509_STORE_add_cert(store, caCert) != 1)
+    {
         perror("Error adding CA certificate to store");
         X509_free(serverCert);
         X509_free(caCert);
@@ -273,7 +277,8 @@ void cert_authenticate_offline()
 
     // Create X509_STORE_CTX
     ctx = X509_STORE_CTX_new();
-    if (!ctx || X509_STORE_CTX_init(ctx, store, serverCert, NULL) != 1) {
+    if (!ctx || X509_STORE_CTX_init(ctx, store, serverCert, NULL) != 1)
+    {
         perror("Error initializing X509_STORE_CTX");
         X509_free(serverCert);
         X509_free(caCert);
@@ -283,19 +288,23 @@ void cert_authenticate_offline()
     }
 
     // Perform certificate verification
-    if (X509_verify_cert(ctx) != 1) {
-        if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) {
-        printf("Certificate is self-signed\n");
-        exit(EXIT_SUCCESS);
-        }else{
-        perror("Certificate verification failed");
-        perror(X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx)));
-
-        X509_free(serverCert);
-        X509_free(caCert);
-        X509_STORE_CTX_free(ctx);
-        X509_STORE_free(store);
-        exit(EXIT_FAILURE);
+    if (X509_verify_cert(ctx) != 1)
+    {
+        if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
+        {
+            printf("Certificate is self-signed\n");
+            exit(EXIT_SUCCESS);
+        }
+        else
+        {
+            perror("Certificate verification failed");
+            perror(X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx)));
+            return;
+            X509_free(serverCert);
+            X509_free(caCert);
+            X509_STORE_CTX_free(ctx);
+            X509_STORE_free(store);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -1009,31 +1018,24 @@ int main(int argc, char *argv[])
 
     //******** SERVER MODE: ********//
 
-    try
-    {   
-        bool found = false;
-        for (int i = 1; i < argc; ++i)
+    bool found = false;
+    for (int i = 1; i < argc; ++i)
+    {
+        // Compare current argument to "-t"
+        if (strcmp(argv[i], "-t") == 0)
         {
-            // Compare current argument to "-t"
-            if (strcmp(argv[i], "-t") == 0)
-            {
-                found = true;
-                return 0;
-            }
-        }
-
-        if (found)
-        {
-            cert_authenticate_online();
-        }
-        else
-        {
-            cert_authenticate_offline();
+            found = true;
+            return 0;
         }
     }
-    catch (const std::exception &e)
+
+    if (found)
     {
-        printf("Error: %s\n", e.what());
+        cert_authenticate_online();
+    }
+    else
+    {
+        cert_authenticate_offline();
     }
 
     cout << "Certification authentication successful" << endl;
