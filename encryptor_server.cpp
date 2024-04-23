@@ -270,7 +270,6 @@ void cert_authenticate_offline()
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
-    X509_STORE_set_flags(store, X509_V_FLAG_ALLOW_SELF_SIGNED);
 
     // Create X509_STORE_CTX
     ctx = X509_STORE_CTX_new();
@@ -285,13 +284,19 @@ void cert_authenticate_offline()
 
     // Perform certificate verification
     if (X509_verify_cert(ctx) != 1) {
+        if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) {
+        printf("Certificate is self-signed\n");
+        break;
+        }else{
         perror("Certificate verification failed");
         perror(X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx)));
+
         X509_free(serverCert);
         X509_free(caCert);
         X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
+        }
     }
 
     // Clean up
