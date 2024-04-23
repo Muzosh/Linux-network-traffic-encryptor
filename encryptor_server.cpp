@@ -1036,148 +1036,147 @@ int main(int argc, char *argv[])
     else
     {
         cert_authenticate_offline();
-        return;
-    }
 
-    cout << "Certification authentication successful" << endl;
+        cout << "Certification authentication successful" << endl;
 
-    // Virtual interface access
-    int tundesc;
-    tundesc = tun_open();
+        // Virtual interface access
+        int tundesc;
+        tundesc = tun_open();
 
-    // TCP connection status variable
-    int status = -1;
+        // TCP connection status variable
+        int status = -1;
 
-    // Message for keeping dynamic NAT translation
-    const char *keepalive = "Keep Alive";
+        // Message for keeping dynamic NAT translation
+        const char *keepalive = "Keep Alive";
 
-    // Reference time for dynamic NAT translation
-    time_t ref = time(NULL);
+        // Reference time for dynamic NAT translation
+        time_t ref = time(NULL);
 
-    // AES key variable creation
-    SecByteBlock key(AES::MAX_KEYLENGTH);
+        // AES key variable creation
+        SecByteBlock key(AES::MAX_KEYLENGTH);
 
-    // Variables for UDP/TCP connections
-    int server_fd;
-    int server_fd_key;
-    socklen_t len;
-    struct sockaddr_in servaddr, cliaddr;
+        // Variables for UDP/TCP connections
+        int server_fd;
+        int server_fd_key;
+        socklen_t len;
+        struct sockaddr_in servaddr, cliaddr;
 
-    // Get count of runnable threads (excluding main thread)
-    int threads_max = std::thread::hardware_concurrency() - 1;
-    std::atomic<int> threads_available = threads_max;
+        // Get count of runnable threads (excluding main thread)
+        int threads_max = std::thread::hardware_concurrency() - 1;
+        std::atomic<int> threads_available = threads_max;
 
-    GCM<AES, CryptoPP::GCM_64K_Tables>::Encryption e;
-    AutoSeededRandomPool prng;
+        GCM<AES, CryptoPP::GCM_64K_Tables>::Encryption e;
+        AutoSeededRandomPool prng;
 
-    while (1)
-    {
-
-        // TCP connection create
-        int new_socket = tcp_connection(&server_fd);
-
-        // Perform ECDH key exchange
-        // string ecdh_key = PerformECDHKeyExchange(new_socket);
-        // Establish PQC key
-        // string pqc_key = get_pqckey(new_socket);
-
-        // UDP connection create
-        // int sockfd = tcp_connection(&server_fd_key);
-
-        char bufferTCP[MAXLINE] = {0};
-
-        read(new_socket, bufferTCP, MAXLINE);
-
-        if (argv[1] != NULL)
-        {
-            // QKD keyID receive
-            get_qkdkey(qkd_ip, bufferTCP);
-        }
-
-        //******** KEY ESTABLISHMENT: ********//
-        // Send the public key to the other party
-        // Server connection details
-        // get_qkdkey(qkd_ip, bufferTCP);
-        // Combine PQC a QKD key into hybrid key for AES
-        // set socket to blocking mode
-        fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
-        key = rekey_srv(new_socket, qkd_ip);
-        fcntl(new_socket, F_SETFL, O_NONBLOCK);
-        status = -1;
-
-        // Return to "waiting on TCP connection" state if TCP connection seems dead
-        while (status != 0)
+        while (1)
         {
 
-            /*
-               Rekeying is initialized when keyID is recieved on TCP socket
+            // TCP connection create
+            int new_socket = tcp_connection(&server_fd);
 
-               Parent process tasks:
-               1) Terminate child (forked) process
-               2) Get new AES key
-               3) Create new child process
+            // Perform ECDH key exchange
+            // string ecdh_key = PerformECDHKeyExchange(new_socket);
+            // Establish PQC key
+            // string pqc_key = get_pqckey(new_socket);
 
-               Termination and creation of new child process is needed for key synchronization
-            */
+            // UDP connection create
+            // int sockfd = tcp_connection(&server_fd_key);
 
-            // Get TCP connection status
-            status = read(new_socket, bufferTCP, MAXLINE);
-            // Establish new hybrid key, if key_ID is recieved
-            cout << status << endl;
-            if (status > 0)
+            char bufferTCP[MAXLINE] = {0};
+
+            read(new_socket, bufferTCP, MAXLINE);
+
+            if (argv[1] != NULL)
             {
-                // fcntl(sockfd, F_SETFL, O_NONBLOCK);
-                fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
+                // QKD keyID receive
+                get_qkdkey(qkd_ip, bufferTCP);
+            }
 
-                if (argv[1] != NULL)
+            //******** KEY ESTABLISHMENT: ********//
+            // Send the public key to the other party
+            // Server connection details
+            // get_qkdkey(qkd_ip, bufferTCP);
+            // Combine PQC a QKD key into hybrid key for AES
+            // set socket to blocking mode
+            fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
+            key = rekey_srv(new_socket, qkd_ip);
+            fcntl(new_socket, F_SETFL, O_NONBLOCK);
+            status = -1;
+
+            // Return to "waiting on TCP connection" state if TCP connection seems dead
+            while (status != 0)
+            {
+
+                /*
+                   Rekeying is initialized when keyID is recieved on TCP socket
+
+                   Parent process tasks:
+                   1) Terminate child (forked) process
+                   2) Get new AES key
+                   3) Create new child process
+
+                   Termination and creation of new child process is needed for key synchronization
+                */
+
+                // Get TCP connection status
+                status = read(new_socket, bufferTCP, MAXLINE);
+                // Establish new hybrid key, if key_ID is recieved
+                cout << status << endl;
+                if (status > 0)
                 {
-                    // QKD keyID receive
-                    get_qkdkey(qkd_ip, bufferTCP);
+                    // fcntl(sockfd, F_SETFL, O_NONBLOCK);
+                    fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
+
+                    if (argv[1] != NULL)
+                    {
+                        // QKD keyID receive
+                        get_qkdkey(qkd_ip, bufferTCP);
+                    }
+                    key = rekey_srv(new_socket, qkd_ip);
+                    // set socket to non-blocking mode
+                    // Set TCP socket to NON-blocking mode
+                    fcntl(new_socket, F_SETFL, O_NONBLOCK);
                 }
-                key = rekey_srv(new_socket, qkd_ip);
-                // set socket to non-blocking mode
-                // Set TCP socket to NON-blocking mode
-                fcntl(new_socket, F_SETFL, O_NONBLOCK);
-            }
-            // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
-            // Create runnable thread if there are data available either on tun interface or UDP socket
-            if (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(new_socket, servaddr, &key, tundesc))
-            {
-                if (threads_available > 0)
+                // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
+                // Create runnable thread if there are data available either on tun interface or UDP socket
+                if (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(new_socket, servaddr, &key, tundesc))
                 {
-                    threads_available -= 1;
-                    std::thread(thread_encrypt, new_socket, servaddr, cliaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
+                    if (threads_available > 0)
+                    {
+                        threads_available -= 1;
+                        std::thread(thread_encrypt, new_socket, servaddr, cliaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
+                    }
                 }
-            }
 
-            // Sleep if no data are available
-            if (threads_available == threads_max)
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-
-            // Help with encryption/decryption if all runnable threads are created
-            if (threads_available == 0)
-            {
-                while (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e))
+                // Sleep if no data are available
+                if (threads_available == threads_max)
                 {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 }
 
-                while (D_E_C_R(new_socket, servaddr, &key, tundesc))
+                // Help with encryption/decryption if all runnable threads are created
+                if (threads_available == 0)
                 {
+                    while (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e))
+                    {
+                    }
+
+                    while (D_E_C_R(new_socket, servaddr, &key, tundesc))
+                    {
+                    }
+                }
+
+                // Send "KeepAlive" message via UDP every 60s to keep dynamic NAT translation - no need to encrypt
+                if (time(NULL) - ref >= 60)
+                {
+                    sendto(new_socket, keepalive, strlen(keepalive), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                    ref = time(NULL);
                 }
             }
-
-            // Send "KeepAlive" message via UDP every 60s to keep dynamic NAT translation - no need to encrypt
-            if (time(NULL) - ref >= 60)
-            {
-                sendto(new_socket, keepalive, strlen(keepalive), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
-                ref = time(NULL);
-            }
+            // Clean sockets termination
+            // close(sockfd);
+            close(new_socket);
+            shutdown(server_fd, SHUT_RDWR);
         }
-        // Clean sockets termination
-        // close(sockfd);
-        close(new_socket);
-        shutdown(server_fd, SHUT_RDWR);
     }
 }
