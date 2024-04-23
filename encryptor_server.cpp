@@ -237,13 +237,13 @@ void cert_authenticate_offline()
     FILE* file = fopen(VALIDATE_CERT, "r");
     if (!file) {
         perror("Error opening server certificate file");
-        return false;
+        exit(EXIT_FAILURE);
     }
     serverCert = PEM_read_X509(file, NULL, NULL);
     fclose(file);
     if (!serverCert) {
         ERR_print_errors_fp(stderr);
-        return false;
+        exit(EXIT_FAILURE);
     }
 
     // Load CA certificate
@@ -251,14 +251,14 @@ void cert_authenticate_offline()
     if (!file) {
         perror("Error opening CA certificate file");
         X509_free(serverCert);
-        return false;
+        exit(EXIT_FAILURE);
     }
     caCert = PEM_read_X509(file, NULL, NULL);
     fclose(file);
     if (!caCert) {
         ERR_print_errors_fp(stderr);
         X509_free(serverCert);
-        return false;
+        exit(EXIT_FAILURE);
     }
 
     // Create X509_STORE and add CA certificate
@@ -268,7 +268,7 @@ void cert_authenticate_offline()
         X509_free(serverCert);
         X509_free(caCert);
         X509_STORE_free(store);
-        return false;
+        exit(EXIT_FAILURE);
     }
 
     // Create X509_STORE_CTX
@@ -279,7 +279,7 @@ void cert_authenticate_offline()
         X509_free(caCert);
         X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
-        return false;
+        exit(EXIT_FAILURE);
     }
 
     // Perform certificate verification
@@ -289,7 +289,7 @@ void cert_authenticate_offline()
         X509_free(caCert);
         X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
-        return false;
+        exit(EXIT_FAILURE);
     }
 
     // Clean up
@@ -1005,7 +1005,7 @@ int main(int argc, char *argv[])
     try
     {
 
-        if (std::find(std::begin(argv[0]), std::end(argv[3]), "-t"))
+        if (std::find(std::begin(argv), std::end(argv), "-t"))
         {
             cert_authenticate_online();
         }
