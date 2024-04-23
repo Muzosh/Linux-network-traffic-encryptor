@@ -284,7 +284,7 @@ void cert_authenticate_offline()
 
     // Perform certificate verification
     if (X509_verify_cert(ctx) != 1) {
-        perror("Certificate verification failed");
+        perror("Certificate verification failed" + X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx)));
         X509_free(serverCert);
         X509_free(caCert);
         X509_STORE_CTX_free(ctx);
