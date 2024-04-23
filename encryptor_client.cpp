@@ -221,8 +221,9 @@ void cert_authenticate_offline()
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
-    X509 *cert = PEM_read_X509(VALIDATE_CERT, nullptr, nullptr, nullptr);
-    fclose(VALIDATE_CERT);
+    FILE *valid_cert = fopen(VALIDATE_CERT, "r");
+    X509 *cert = PEM_read_X509(valid_cert, nullptr, nullptr, nullptr);
+    fclose(valid_cert);
 
     X509_STORE_CTX_init(ctx, store, cert, nullptr);
 
@@ -993,15 +994,8 @@ int main(int argc, char *argv[])
 
     try
     {
-        bool found = false;
-        for (size_t i = 0; i < strlen(argv); ++i)
-        {
-            if (charArray[i] == "--t")
-            {
-                found = true;
-            }
-        }
-        if (found)
+
+        if (std::find(std::begin(argv[0]), std::end(argv[3]), "-t"))
         {
             cert_authenticate_online(srv_ip);
         }
