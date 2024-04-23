@@ -40,7 +40,7 @@
 #define TAG_SIZE 16
 
 #define VALIDATE_CERT "client.crt" // Název souboru serverového certifikátu
-#define CLIENT_CA_CERT "ca.crt"  // Cesta k certifikátu certifikační autority klienta
+#define CLIENT_CA_CERT "ca.crt"    // Cesta k certifikátu certifikační autority klienta
 
 #include <iostream>
 using std::cerr;
@@ -103,8 +103,7 @@ string kyber_cipher_data_str;
 string qkd_parameter;
 int counter = 0;
 
-
- std::atomic<int> enc_read_order = 0;
+std::atomic<int> enc_read_order = 0;
 std::atomic<int> dec_read_order = 0;
 std::atomic<int> enc_send_order = 1;
 std::atomic<int> dec_send_order = 1;
@@ -138,8 +137,6 @@ void cert_authenticate_online()
     SSL_CTX *ctx;
     SSL *ssl;
     BIO *acc, *client;
-
-   
 
     // Initialize OpenSSL
     SSL_library_init();
@@ -227,46 +224,34 @@ void cert_authenticate_online()
     SSL_CTX_free(ctx);
 }
 
-void cert_authenticate_offline(){
-    // Open the certificate file
-    std::ifstream certFile(VALIDATE_CERT, std::ios::binary); // Open in binary mode
-    if (!certFile) {
-        std::cerr << "Cannot open certificate file." << std::endl;
-        return false;
-    }
+void cert_authenticate_offline()
+{
 
-    // Load the certificate in CRT format
-    X509* cert = d2i_X509_fp(VALIDATE_CERT.native_handle(), NULL);
-    certFile.close();
-    if (!cert) {
-        std::cerr << "Error loading certificate." << std::endl;
-        return false;
-    }
-
-    // Initialize the store for root certificates
     X509_STORE* store = X509_STORE_new();
     if (!store) {
-        std::cerr << "Error creating store for root certificates." << std::endl;
-        X509_free(cert);
-        return false;
+        perror("Error creating X509 store");
+        exit(EXIT_FAILURE);
     }
 
-    // Load the root certificates
-    if (X509_STORE_load_locations(store, SERVER_CA_CERT.c_str(), NULL) != 1) {
-        std::cerr << "Error loading root certificate." << std::endl;
-        X509_free(cert);
+    X509_STORE_add_cert(store, CLIENT_CA_CERT);
+
+    X509_STORE_CTX* ctx = X509_STORE_CTX_new();
+    if (!ctx) {
+        perror("Error creating X509 store context");
         X509_STORE_free(store);
-        return false;
+        exit(EXIT_FAILURE);
     }
 
-    // Verify the certificate
-    if (!verifyCertificate(cert, store)) {
-        X509_free(cert); // Free memory
+    X509_STORE_CTX_init(ctx, store, VALIDATE_CERT, nullptr);
+
+    int result = X509_verify_cert(ctx);
+    if (result != 1) {
+        X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
-        return false;
+        exit(EXIT_FAILURE);
     }
 
-    X509_free(cert); // Free memory
+    X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
 }
 
@@ -427,28 +412,28 @@ bool D_E_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
     {
         return false;
     }
-     int order = enc_get_order();
-//    cout << "\n dec order: " << order << endl;
+    int order = enc_get_order();
+    //    cout << "\n dec order: " << order << endl;
     try
     {
         data = decrypt_data(key, encrypted_data);
     }
     catch (...)
     {
-         while (order != enc_send_order)
+        while (order != enc_send_order)
         {
-//            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            //            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
         }
-        enc_send_order = (enc_send_order % 100000) +1;
+        enc_send_order = (enc_send_order % 100000) + 1;
         return true;
     }
-        while (order != enc_send_order)
+    while (order != enc_send_order)
     {
-//        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        //        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
     write_tun(tundesc, data);
     cout << "\n dec send order: " << enc_send_order << endl;
-    enc_send_order = (enc_send_order % 100000) +1;
+    enc_send_order = (enc_send_order % 100000) + 1;
     return true;
 }
 
@@ -469,16 +454,16 @@ bool E_N_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
     {
         return false;
     }
-     int order = enc_get_order();
-//    cout << "\n enc order: " << order << endl;
+    int order = enc_get_order();
+    //    cout << "\n enc order: " << order << endl;
     string encrypted_data = encrypt_data(key, data, prng, &e);
     while (order != enc_send_order)
     {
-//        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        //        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
     send_encrypted(sockfd, servaddr, encrypted_data, len);
-     cout << "\n enc send order: " << enc_send_order << endl;
-    enc_send_order = (enc_send_order % 100000) +1;
+    cout << "\n enc send order: " << enc_send_order << endl;
+    enc_send_order = (enc_send_order % 100000) + 1;
     return true;
 }
 
@@ -983,8 +968,6 @@ int main(int argc, char *argv[])
         {
             cert_authenticate_offline();
         }
-        
-        
     }
     catch (const std::exception &e)
     {

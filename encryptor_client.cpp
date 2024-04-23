@@ -205,49 +205,31 @@ void cert_authenticate_online(const char *srv_ip)
 
 void cert_authenticate_offline(){
 
-// Open the certificate file
-    std::ifstream certFile(VALIDATE_CERT, std::ios::binary); // Open in binary mode
-    if (!certFile) {
-        printf("Error opening certificate file.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Load the certificate in CRT format
-    X509* cert = d2i_X509_fp(VALIDATE_CERT.native_handle(), NULL);
-    certFile.close();
-    if (!cert) {
-        printf("Error loading certificate.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Initialize the store for root certificates
-    X509_STORE* store = X509_STORE_new();
+ X509_STORE* store = X509_STORE_new();
     if (!store) {
-        printf("Error creating X509 store.\n");
-        X509_free(cert);
+        perror("Error creating X509 store");
         exit(EXIT_FAILURE);
     }
 
-    // Load the root certificates
-    if (X509_STORE_load_locations(store, SERVER_CA_CERT.c_str(), NULL) != 1) {
-        printf("Error loading root certificates.\n");
-        X509_free(cert);
+    X509_STORE_add_cert(store, SERVER_CA_CERT);
+
+    X509_STORE_CTX* ctx = X509_STORE_CTX_new();
+    if (!ctx) {
+        perror("Error creating X509 store context");
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
 
-    // Verify the certificate
-    if (!verifyCertificate(cert, store)) {
-        X509_free(cert); // Free memory
+    X509_STORE_CTX_init(ctx, store, VALIDATE_CERT, nullptr);
+
+    int result = X509_verify_cert(ctx);
+    if (result != 1) {
+        X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
-    }else
-    {
-        printf("Certificate verified successfully.\n");
     }
-    
 
-    X509_free(cert);
+    X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
 }
 
@@ -1012,7 +994,7 @@ int main(int argc, char *argv[])
     {   
         if (argv.contains("--t"))
         {
-            cert_authenticate_online();
+            cert_authenticate_online(srv_ip);
         }else
         {
             cert_authenticate_offline();
