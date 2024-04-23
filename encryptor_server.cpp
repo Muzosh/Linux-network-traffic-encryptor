@@ -1015,7 +1015,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (true)
+        if (found)
         {
             cert_authenticate_online();
         }
