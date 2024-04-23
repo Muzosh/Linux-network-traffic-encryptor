@@ -29,11 +29,18 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #define PORT 62000
 #define KEYPORT 61000
 #define MAXLINE 1500
 #define TAG_SIZE 16
+
+#define VALIDATE_CERT "client.crt" // Název souboru serverového certifikátu
+#define CLIENT_CA_CERT "ca.crt"    // Cesta k certifikátu certifikační autority klienta
 
 #include <iostream>
 using std::cerr;
@@ -89,11 +96,223 @@ using CryptoPP::AES;
 using CryptoPP::GCM;
 
 #include "assert.h"
+#include <mutex>
 
 string xy_str;
 string kyber_cipher_data_str;
 string qkd_parameter;
 int counter = 0;
+
+std::atomic<int> enc_read_order = 0;
+std::atomic<int> dec_read_order = 0;
+std::atomic<int> enc_send_order = 1;
+std::atomic<int> dec_send_order = 1;
+std::mutex m1;
+std::mutex m2;
+
+int enc_get_order()
+{
+    m1.lock();
+    enc_read_order = (enc_read_order % 100000) + 1;
+    int order = enc_read_order;
+    m1.unlock();
+    return order;
+}
+
+/*
+   Get decription order after reading from socket
+*/
+
+int dec_get_order()
+{
+    m2.lock();
+    dec_read_order = (dec_read_order % 100000) + 1;
+    int order = enc_read_order;
+    m2.unlock();
+    return order;
+}
+void cert_authenticate_online()
+{
+
+    SSL_CTX *ctx;
+    SSL *ssl;
+    BIO *acc, *client;
+
+    // Initialize OpenSSL
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+
+    // Create a new SSL context
+    ctx = SSL_CTX_new(SSLv23_server_method());
+    if (ctx == NULL)
+    {
+        printf("Error while creating context\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Load the CA certificate
+    if (SSL_CTX_load_verify_locations(ctx, CLIENT_CA_CERT, NULL) != 1)
+    {
+        printf("Error loading a client CA certificate.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create BIO acceptor
+    acc = BIO_new_accept("61000");
+    if (acc == NULL)
+    {
+        printf("Error creating BIO acceptor.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Add acceptor to context
+    if (BIO_do_accept(acc) <= 0)
+    {
+        printf("Error adding acceptor to context.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    while (counter < 1)
+    {
+        if (BIO_do_accept(acc) <= 0)
+        {
+            printf("Error while receiving.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Acquiering client BIO
+        client = BIO_pop(acc);
+        if (client == NULL)
+        {
+            printf("Error acquiring client BIO.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Create new SSL connection state
+        ssl = SSL_new(ctx);
+        if (ssl == NULL)
+        {
+            printf("Error while creating SSL connection.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Connect the SSL object with the BIO
+        SSL_set_bio(ssl, client, client);
+
+        // Establish the SSL connection
+        if (SSL_accept(ssl) <= 0)
+        {
+            printf("Error when establishing SSL connection.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Veryfying the certificate
+        if (SSL_get_verify_result(ssl) != X509_V_OK)
+        {
+            printf("Error while verifying the certificate.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Shutdown the SSL connection
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+        counter++;
+    }
+
+    BIO_free(acc);
+    SSL_CTX_free(ctx);
+}
+
+void cert_authenticate_offline()
+{
+
+    X509 *serverCert = NULL;
+    X509 *caCert = NULL;
+    X509_STORE *store = NULL;
+    X509_STORE_CTX *ctx = NULL;
+
+    // Load server's certificate
+    FILE *file = fopen(VALIDATE_CERT, "r");
+    if (!file)
+    {
+        perror("Error opening server certificate file");
+        exit(EXIT_FAILURE);
+    }
+    serverCert = PEM_read_X509(file, NULL, NULL, NULL);
+    fclose(file);
+    if (!serverCert)
+    {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    // Load CA certificate
+    file = fopen(CLIENT_CA_CERT, "r");
+    if (!file)
+    {
+        perror("Error opening CA certificate file");
+        X509_free(serverCert);
+        exit(EXIT_FAILURE);
+    }
+    caCert = PEM_read_X509(file, NULL, NULL, NULL);
+    fclose(file);
+    if (!caCert)
+    {
+        ERR_print_errors_fp(stderr);
+        X509_free(serverCert);
+        exit(EXIT_FAILURE);
+    }
+
+    // Create X509_STORE and add CA certificate
+    store = X509_STORE_new();
+    if (!store || X509_STORE_add_cert(store, caCert) != 1)
+    {
+        perror("Error adding CA certificate to store");
+        X509_free(serverCert);
+        X509_free(caCert);
+        X509_STORE_free(store);
+        exit(EXIT_FAILURE);
+    }
+
+    // Create X509_STORE_CTX
+    ctx = X509_STORE_CTX_new();
+    if (!ctx || X509_STORE_CTX_init(ctx, store, serverCert, NULL) != 1)
+    {
+        perror("Error initializing X509_STORE_CTX");
+        X509_free(serverCert);
+        X509_free(caCert);
+        X509_STORE_CTX_free(ctx);
+        X509_STORE_free(store);
+        exit(EXIT_FAILURE);
+    }
+
+    // Perform certificate verification
+    if (X509_verify_cert(ctx) != 1)
+    {
+        if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)
+        {
+            printf("Certificate is self-signed\n");
+            return;
+        }
+        else
+        {
+            perror("Certificate verification failed");
+            perror(X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx)));
+            X509_free(serverCert);
+            X509_free(caCert);
+            X509_STORE_CTX_free(ctx);
+            X509_STORE_free(store);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Clean up
+    X509_free(serverCert);
+    X509_free(caCert);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+}
 
 string convertToString(char *a)
 {
@@ -252,16 +471,28 @@ bool D_E_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
     {
         return false;
     }
+    int order = enc_get_order();
+    //    cout << "\n dec order: " << order << endl;
     try
     {
         data = decrypt_data(key, encrypted_data);
     }
     catch (...)
     {
+        while (order != enc_send_order)
+        {
+            //            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        }
+        enc_send_order = (enc_send_order % 100000) + 1;
         return true;
     }
-
+    while (order != enc_send_order)
+    {
+        //        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+    }
     write_tun(tundesc, data);
+    cout << "\n dec send order: " << enc_send_order << endl;
+    enc_send_order = (enc_send_order % 100000) + 1;
     return true;
 }
 
@@ -282,8 +513,16 @@ bool E_N_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
     {
         return false;
     }
+    int order = enc_get_order();
+    //    cout << "\n enc order: " << order << endl;
     string encrypted_data = encrypt_data(key, data, prng, &e);
+    while (order != enc_send_order)
+    {
+        //        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+    }
     send_encrypted(sockfd, servaddr, encrypted_data, len);
+    cout << "\n enc send order: " << enc_send_order << endl;
+    enc_send_order = (enc_send_order % 100000) + 1;
     return true;
 }
 
@@ -767,6 +1006,7 @@ int main(int argc, char *argv[])
         help();
         return 0;
     }*/
+
     string qkd_ip = "";
     // First argument - QKD server IP address
     if (argv[1] != NULL)
@@ -776,6 +1016,28 @@ int main(int argc, char *argv[])
     }
 
     //******** SERVER MODE: ********//
+
+    bool found = false;
+    for (int i = 1; i < argc; ++i)
+    {
+        // Compare current argument to "-t"
+        if (strcmp(argv[i], "-t") == 0)
+        {
+            found = true;
+            return 0;
+        }
+    }
+
+    if (found)
+    {
+        cert_authenticate_online();
+    }
+    else
+    {
+        cert_authenticate_offline();
+    }
+
+    cout << "Certification authentication successful" << endl;
 
     // Virtual interface access
     int tundesc;
@@ -795,6 +1057,7 @@ int main(int argc, char *argv[])
 
     // Variables for UDP/TCP connections
     int server_fd;
+    int server_fd_key;
     socklen_t len;
     struct sockaddr_in servaddr, cliaddr;
 
@@ -817,10 +1080,10 @@ int main(int argc, char *argv[])
         // string pqc_key = get_pqckey(new_socket);
 
         // UDP connection create
-        int sockfd = udp_connection(&servaddr, &cliaddr, &len);
+        // int sockfd = tcp_connection(&server_fd_key);
 
         char bufferTCP[MAXLINE] = {0};
-        
+
         read(new_socket, bufferTCP, MAXLINE);
 
         if (argv[1] != NULL)
@@ -834,6 +1097,8 @@ int main(int argc, char *argv[])
         // Server connection details
         // get_qkdkey(qkd_ip, bufferTCP);
         // Combine PQC a QKD key into hybrid key for AES
+        // set socket to blocking mode
+        fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
         key = rekey_srv(new_socket, qkd_ip);
         fcntl(new_socket, F_SETFL, O_NONBLOCK);
         status = -1;
@@ -856,8 +1121,10 @@ int main(int argc, char *argv[])
             // Get TCP connection status
             status = read(new_socket, bufferTCP, MAXLINE);
             // Establish new hybrid key, if key_ID is recieved
+            cout << status << endl;
             if (status > 0)
             {
+                // fcntl(sockfd, F_SETFL, O_NONBLOCK);
                 fcntl(new_socket, F_SETFL, fcntl(new_socket, F_GETFL, 0) & ~O_NONBLOCK);
 
                 if (argv[1] != NULL)
@@ -868,15 +1135,16 @@ int main(int argc, char *argv[])
                 key = rekey_srv(new_socket, qkd_ip);
                 // set socket to non-blocking mode
                 // Set TCP socket to NON-blocking mode
+                fcntl(new_socket, F_SETFL, O_NONBLOCK);
             }
-            fcntl(new_socket, F_SETFL, O_NONBLOCK);
+            // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
             // Create runnable thread if there are data available either on tun interface or UDP socket
-            if (E_N_C_R(sockfd, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(sockfd, servaddr, &key, tundesc))
+            if (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e) || D_E_C_R(new_socket, servaddr, &key, tundesc))
             {
                 if (threads_available > 0)
                 {
                     threads_available -= 1;
-                    std::thread(thread_encrypt, sockfd, servaddr, cliaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
+                    std::thread(thread_encrypt, new_socket, servaddr, cliaddr, &key, tundesc, len, &threads_available, &prng, e).detach();
                 }
             }
 
@@ -889,11 +1157,11 @@ int main(int argc, char *argv[])
             // Help with encryption/decryption if all runnable threads are created
             if (threads_available == 0)
             {
-                while (E_N_C_R(sockfd, cliaddr, &key, tundesc, len, &prng, e))
+                while (E_N_C_R(new_socket, cliaddr, &key, tundesc, len, &prng, e))
                 {
                 }
 
-                while (D_E_C_R(sockfd, servaddr, &key, tundesc))
+                while (D_E_C_R(new_socket, servaddr, &key, tundesc))
                 {
                 }
             }
@@ -901,12 +1169,12 @@ int main(int argc, char *argv[])
             // Send "KeepAlive" message via UDP every 60s to keep dynamic NAT translation - no need to encrypt
             if (time(NULL) - ref >= 60)
             {
-                sendto(sockfd, keepalive, strlen(keepalive), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
+                sendto(new_socket, keepalive, strlen(keepalive), MSG_CONFIRM, (const struct sockaddr *)&cliaddr, len);
                 ref = time(NULL);
             }
         }
         // Clean sockets termination
-        close(sockfd);
+        // close(sockfd);
         close(new_socket);
         shutdown(server_fd, SHUT_RDWR);
     }
