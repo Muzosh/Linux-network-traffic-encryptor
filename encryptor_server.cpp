@@ -228,7 +228,7 @@ void cert_authenticate_offline()
 {
 
    
-   X509* serverCert = NULL;
+    X509* serverCert = NULL;
     X509* caCert = NULL;
     X509_STORE* store = NULL;
     X509_STORE_CTX* ctx = NULL;
@@ -239,7 +239,7 @@ void cert_authenticate_offline()
         perror("Error opening server certificate file");
         exit(EXIT_FAILURE);
     }
-    serverCert = PEM_read_X509(file, NULL, NULL);
+    serverCert = PEM_read_X509(file, NULL, NULL, NULL);
     fclose(file);
     if (!serverCert) {
         ERR_print_errors_fp(stderr);
@@ -253,7 +253,7 @@ void cert_authenticate_offline()
         X509_free(serverCert);
         exit(EXIT_FAILURE);
     }
-    caCert = PEM_read_X509(file, NULL, NULL);
+    caCert = PEM_read_X509(file, NULL, NULL, NULL);
     fclose(file);
     if (!caCert) {
         ERR_print_errors_fp(stderr);
