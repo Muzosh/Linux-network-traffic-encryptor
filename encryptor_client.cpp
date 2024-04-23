@@ -205,34 +205,38 @@ void cert_authenticate_online(const char *srv_ip)
 void cert_authenticate_offline()
 {
 
-   X509* serverCert = NULL;
-    X509* caCert = NULL;
-    X509_STORE* store = NULL;
-    X509_STORE_CTX* ctx = NULL;
+    X509 *serverCert = NULL;
+    X509 *caCert = NULL;
+    X509_STORE *store = NULL;
+    X509_STORE_CTX *ctx = NULL;
 
     // Load server's certificate
-    FILE* file = fopen(VALIDATE_CERT, "r");
-    if (!file) {
+    FILE *file = fopen(VALIDATE_CERT, "r");
+    if (!file)
+    {
         perror("Error opening server certificate file");
         exit(EXIT_FAILURE);
     }
     serverCert = PEM_read_X509(file, NULL, NULL, NULL);
     fclose(file);
-    if (!serverCert) {
+    if (!serverCert)
+    {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
     // Load CA certificate
     file = fopen(SERVER_CA_CERT, "r");
-    if (!file) {
+    if (!file)
+    {
         perror("Error opening CA certificate file");
         X509_free(serverCert);
-       exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     caCert = PEM_read_X509(file, NULL, NULL, NULL);
     fclose(file);
-    if (!caCert) {
+    if (!caCert)
+    {
         ERR_print_errors_fp(stderr);
         X509_free(serverCert);
         exit(EXIT_FAILURE);
@@ -240,17 +244,19 @@ void cert_authenticate_offline()
 
     // Create X509_STORE and add CA certificate
     store = X509_STORE_new();
-    if (!store || X509_STORE_add_cert(store, caCert) != 1) {
+    if (!store || X509_STORE_add_cert(store, caCert) != 1)
+    {
         perror("Error adding CA certificate to store");
         X509_free(serverCert);
         X509_free(caCert);
         X509_STORE_free(store);
-       exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     // Create X509_STORE_CTX
     ctx = X509_STORE_CTX_new();
-    if (!ctx || X509_STORE_CTX_init(ctx, store, serverCert, NULL) != 1) {
+    if (!ctx || X509_STORE_CTX_init(ctx, store, serverCert, NULL) != 1)
+    {
         perror("Error initializing X509_STORE_CTX");
         X509_free(serverCert);
         X509_free(caCert);
@@ -260,7 +266,8 @@ void cert_authenticate_offline()
     }
 
     // Perform certificate verification
-    if (X509_verify_cert(ctx) != 1) {
+    if (X509_verify_cert(ctx) != 1)
+    {
         perror("Certificate verification failed");
         X509_free(serverCert);
         X509_free(caCert);
@@ -1032,8 +1039,18 @@ int main(int argc, char *argv[])
 
     try
     {
+        bool found = false;
+        for (int i = 1; i < argc; ++i)
+        {
+            // Compare current argument to "-t"
+            if (strcmp(argv[i], "-t") == 0)
+            {
+                found = true;
+                return 0;
+            }
+        }
 
-        if (std::find(std::begin(argv), std::end(argv), "-t"))
+        if (true)
         {
             cert_authenticate_online(srv_ip);
         }

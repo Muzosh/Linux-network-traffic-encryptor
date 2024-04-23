@@ -1003,9 +1003,19 @@ int main(int argc, char *argv[])
     //******** SERVER MODE: ********//
 
     try
-    {
+    {   
+        bool found = false;
+        for (int i = 1; i < argc; ++i)
+        {
+            // Compare current argument to "-t"
+            if (strcmp(argv[i], "-t") == 0)
+            {
+                found = true;
+                return 0;
+            }
+        }
 
-        if (std::find(std::begin(argv), std::end(argv), "-t"))
+        if (true)
         {
             cert_authenticate_online();
         }
