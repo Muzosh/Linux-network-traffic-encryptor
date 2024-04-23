@@ -286,7 +286,7 @@ void cert_authenticate_offline()
     if (X509_verify_cert(ctx) != 1) {
         if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) {
         printf("Certificate is self-signed\n");
-        break;
+        exit(EXIT_SUCCESS);
         }else{
         perror("Certificate verification failed");
         perror(X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx)));
