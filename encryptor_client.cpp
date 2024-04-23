@@ -253,6 +253,9 @@ void cert_authenticate_offline()
         exit(EXIT_FAILURE);
     }
 
+    // Set the trusted certificate store to verify against
+    // Skipping the verification step that checks for a trusted issuer
+    //X509_STORE_set_flags(store, X509_V_FLAG_ALLOW_SELF_SIGNED);
     // Create X509_STORE_CTX
     ctx = X509_STORE_CTX_new();
     if (!ctx || X509_STORE_CTX_init(ctx, store, serverCert, NULL) != 1)
@@ -264,6 +267,7 @@ void cert_authenticate_offline()
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
+
 
     // Perform certificate verification
     if (X509_verify_cert(ctx) != 1)

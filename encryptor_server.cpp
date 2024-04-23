@@ -270,6 +270,7 @@ void cert_authenticate_offline()
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
+    X509_STORE_set_flags(store, X509_V_FLAG_ALLOW_SELF_SIGNED);
 
     // Create X509_STORE_CTX
     ctx = X509_STORE_CTX_new();
