@@ -39,8 +39,7 @@
 #define MAXLINE 1500
 #define TAG_SIZE 16
 
-#define SERVER_CERT "server.crt" // Název souboru serverového certifikátu
-#define SERVER_KEY "server.key"  // Název souboru serverového klíče
+#define VALIDATE_CERT "client.crt" // Název souboru serverového certifikátu
 #define CLIENT_CA_CERT "ca.crt"  // Cesta k certifikátu certifikační autority klienta
 
 #include <iostream>
@@ -133,7 +132,7 @@ int dec_get_order()
     m2.unlock();
     return order;
 }
-void cert_authenticate()
+void cert_authenticate_online()
 {
 
     SSL_CTX *ctx;
@@ -159,20 +158,6 @@ void cert_authenticate()
     if (SSL_CTX_load_verify_locations(ctx, CLIENT_CA_CERT, NULL) != 1)
     {
         printf("Error loading a client CA certificate.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Set the local certificate from CertFile
-    if (SSL_CTX_use_certificate_file(ctx, SERVER_CERT, SSL_FILETYPE_PEM) <= 0)
-    {
-        printf("Error while loading server certificate.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Load the private key
-    if (SSL_CTX_use_PrivateKey_file(ctx, SERVER_KEY, SSL_FILETYPE_PEM) <= 0)
-    {
-        printf("Error while loading server key.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -240,6 +225,49 @@ void cert_authenticate()
 
     BIO_free(acc);
     SSL_CTX_free(ctx);
+}
+
+void cert_authenticate_offline(){
+    // Open the certificate file
+    std::ifstream certFile(VALIDATE_CERT, std::ios::binary); // Open in binary mode
+    if (!certFile) {
+        std::cerr << "Cannot open certificate file." << std::endl;
+        return false;
+    }
+
+    // Load the certificate in CRT format
+    X509* cert = d2i_X509_fp(VALIDATE_CERT.native_handle(), NULL);
+    certFile.close();
+    if (!cert) {
+        std::cerr << "Error loading certificate." << std::endl;
+        return false;
+    }
+
+    // Initialize the store for root certificates
+    X509_STORE* store = X509_STORE_new();
+    if (!store) {
+        std::cerr << "Error creating store for root certificates." << std::endl;
+        X509_free(cert);
+        return false;
+    }
+
+    // Load the root certificates
+    if (X509_STORE_load_locations(store, SERVER_CA_CERT.c_str(), NULL) != 1) {
+        std::cerr << "Error loading root certificate." << std::endl;
+        X509_free(cert);
+        X509_STORE_free(store);
+        return false;
+    }
+
+    // Verify the certificate
+    if (!verifyCertificate(cert, store)) {
+        X509_free(cert); // Free memory
+        X509_STORE_free(store);
+        return false;
+    }
+
+    X509_free(cert); // Free memory
+    X509_STORE_free(store);
 }
 
 string convertToString(char *a)
@@ -947,11 +975,20 @@ int main(int argc, char *argv[])
 
     try
     {
-        //  cert_authenticate();
+        if (argv.contains("--test"))
+        {
+            cert_authenticate_online();
+        }
+        else
+        {
+            cert_authenticate_offline();
+        }
+        
+        
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Certification authentication failed" << '\n';
+        printf("Error: %s\n", e.what());
     }
 
     cout << "Certification authentication successful" << endl;

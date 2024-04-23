@@ -30,8 +30,7 @@
 #define MAXLINE 1500
 #define TAG_SIZE 16
 
-#define CLIENT_CERT "client.crt"
-#define CLIENT_KEY "client.key"
+#define VALIDATE_CERT "server.crt"
 #define SERVER_CA_CERT "ca.crt"
 
 #include <iostream>
@@ -134,7 +133,7 @@ int dec_get_order()
     return order;
 }
 
-void cert_authenticate(const char *srv_ip)
+void cert_authenticate_online(const char *srv_ip)
 {
     SSL_CTX *ctx;
     SSL *ssl;
@@ -160,18 +159,7 @@ void cert_authenticate(const char *srv_ip)
         exit(EXIT_FAILURE);
     }
 
-    // Loading client certificate and private key
-    if (SSL_CTX_use_certificate_file(ctx, CLIENT_CERT, SSL_FILETYPE_PEM) != 1)
-    {
-        printf("Error loading client certificate.\n");
-        exit(EXIT_FAILURE);
-    }
-    if (SSL_CTX_use_PrivateKey_file(ctx, CLIENT_KEY, SSL_FILETYPE_PEM) != 1)
-    {
-        printf("Error while loading private key of client.\n");
-        exit(EXIT_FAILURE);
-    }
-
+   
     // Create SSL connection
     ssl = SSL_new(ctx);
     if (ssl == NULL)
@@ -213,6 +201,54 @@ void cert_authenticate(const char *srv_ip)
 
     BIO_free_all(bio);
     SSL_CTX_free(ctx);
+}
+
+void cert_authenticate_offline(){
+
+// Open the certificate file
+    std::ifstream certFile(VALIDATE_CERT, std::ios::binary); // Open in binary mode
+    if (!certFile) {
+        printf("Error opening certificate file.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Load the certificate in CRT format
+    X509* cert = d2i_X509_fp(VALIDATE_CERT.native_handle(), NULL);
+    certFile.close();
+    if (!cert) {
+        printf("Error loading certificate.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize the store for root certificates
+    X509_STORE* store = X509_STORE_new();
+    if (!store) {
+        printf("Error creating X509 store.\n");
+        X509_free(cert);
+        exit(EXIT_FAILURE);
+    }
+
+    // Load the root certificates
+    if (X509_STORE_load_locations(store, SERVER_CA_CERT.c_str(), NULL) != 1) {
+        printf("Error loading root certificates.\n");
+        X509_free(cert);
+        X509_STORE_free(store);
+        exit(EXIT_FAILURE);
+    }
+
+    // Verify the certificate
+    if (!verifyCertificate(cert, store)) {
+        X509_free(cert); // Free memory
+        X509_STORE_free(store);
+        exit(EXIT_FAILURE);
+    }else
+    {
+        printf("Certificate verified successfully.\n");
+    }
+    
+
+    X509_free(cert);
+    X509_STORE_free(store);
 }
 
 string convertToString(char *a)
@@ -973,8 +1009,14 @@ int main(int argc, char *argv[])
     //******** CLIENT MODE: ********//
 
     try
-    {
-        // cert_authenticate(srv_ip);
+    {   
+        if (argv.contains("--t"))
+        {
+            cert_authenticate_online();
+        }else
+        {
+            cert_authenticate_offline();
+        }
     }
     catch (const std::exception &e)
     {
