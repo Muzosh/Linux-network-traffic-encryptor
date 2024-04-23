@@ -219,8 +219,10 @@ void cert_authenticate_offline(){
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
+    X509* cert = PEM_read_X509(VALIDATE_CERT, nullptr, nullptr, nullptr);
+    fclose(VALIDATE_CERT);
 
-    X509_STORE_CTX_init(ctx, store, VALIDATE_CERT, nullptr);
+    X509_STORE_CTX_init(ctx, store, cert, nullptr);
 
     int result = X509_verify_cert(ctx);
     if (result != 1) {
@@ -228,7 +230,6 @@ void cert_authenticate_offline(){
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
-
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
 }
