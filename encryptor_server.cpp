@@ -227,26 +227,29 @@ void cert_authenticate_online()
 void cert_authenticate_offline()
 {
 
-    X509_STORE* store = X509_STORE_new();
-    if (!store) {
+    X509_STORE *store = X509_STORE_new();
+    if (!store)
+    {
         perror("Error creating X509 store");
         exit(EXIT_FAILURE);
     }
 
     X509_STORE_add_cert(store, CLIENT_CA_CERT);
 
-    X509_STORE_CTX* ctx = X509_STORE_CTX_new();
-    if (!ctx) {
+    X509_STORE_CTX *ctx = X509_STORE_CTX_new();
+    if (!ctx)
+    {
         perror("Error creating X509 store context");
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
-    X509* cert = PEM_read_X509(VALIDATE_CERT, nullptr, nullptr, nullptr);
+    X509 *cert = PEM_read_X509(VALIDATE_CERT, nullptr, nullptr, nullptr);
     fclose(VALIDATE_CERT);
     X509_STORE_CTX_init(ctx, store, cert, nullptr);
 
     int result = X509_verify_cert(ctx);
-    if (result != 1) {
+    if (result != 1)
+    {
         X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
@@ -960,7 +963,15 @@ int main(int argc, char *argv[])
 
     try
     {
-        if (argv.contains("--test"))
+        bool found = false;
+        for (size_t i = 0; i < strlen(argv); ++i)
+        {
+            if (charArray[i] == "--t")
+            {
+                found = true;
+            }
+        }
+        if (found)
         {
             cert_authenticate_online();
         }

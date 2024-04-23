@@ -159,7 +159,6 @@ void cert_authenticate_online(const char *srv_ip)
         exit(EXIT_FAILURE);
     }
 
-   
     // Create SSL connection
     ssl = SSL_new(ctx);
     if (ssl == NULL)
@@ -203,29 +202,33 @@ void cert_authenticate_online(const char *srv_ip)
     SSL_CTX_free(ctx);
 }
 
-void cert_authenticate_offline(){
+void cert_authenticate_offline()
+{
 
- X509_STORE* store = X509_STORE_new();
-    if (!store) {
+    X509_STORE *store = X509_STORE_new();
+    if (!store)
+    {
         perror("Error creating X509 store");
         exit(EXIT_FAILURE);
     }
 
     X509_STORE_add_cert(store, SERVER_CA_CERT);
 
-    X509_STORE_CTX* ctx = X509_STORE_CTX_new();
-    if (!ctx) {
+    X509_STORE_CTX *ctx = X509_STORE_CTX_new();
+    if (!ctx)
+    {
         perror("Error creating X509 store context");
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
     }
-    X509* cert = PEM_read_X509(VALIDATE_CERT, nullptr, nullptr, nullptr);
+    X509 *cert = PEM_read_X509(VALIDATE_CERT, nullptr, nullptr, nullptr);
     fclose(VALIDATE_CERT);
 
     X509_STORE_CTX_init(ctx, store, cert, nullptr);
 
     int result = X509_verify_cert(ctx);
-    if (result != 1) {
+    if (result != 1)
+    {
         X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
         exit(EXIT_FAILURE);
@@ -392,29 +395,27 @@ bool D_E_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
         return false;
     }
     int order = enc_get_order();
-//    cout << "\n dec order:" << order << endl;
+    //    cout << "\n dec order:" << order << endl;
     try
     {
         data = decrypt_data(key, encrypted_data);
     }
     catch (...)
-    {   
-         while (order != enc_send_order)
+    {
+        while (order != enc_send_order)
         {
-//            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            //            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
         }
-        enc_send_order = (enc_send_order % 100000) +1;
+        enc_send_order = (enc_send_order % 100000) + 1;
         return true;
     }
 
-    
-
-        while (order != enc_send_order)
+    while (order != enc_send_order)
     {
-//        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        //        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
     write_tun(tundesc, data);
-    enc_send_order = (enc_send_order % 100000) +1;
+    enc_send_order = (enc_send_order % 100000) + 1;
     return true;
 }
 
@@ -435,17 +436,16 @@ bool E_N_C_R(int sockfd, struct sockaddr_in servaddr, SecByteBlock *key, int tun
     {
         return false;
     }
-     int order = enc_get_order();
-//    cout << "\n enc order:" << order << endl;
+    int order = enc_get_order();
+    //    cout << "\n enc order:" << order << endl;
     string encrypted_data = encrypt_data(key, data, prng, &e);
     while (order != enc_send_order)
     {
-//        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        //        std::this_thread::sleep_for(std::chrono::nanoseconds(1));
     }
 
-
     send_encrypted(sockfd, servaddr, encrypted_data, len);
-       cout << "\n enc send order:" << enc_send_order << endl;
+    cout << "\n enc send order:" << enc_send_order << endl;
     enc_send_order = (enc_send_order % 100000) + 1;
     return true;
 }
@@ -992,11 +992,20 @@ int main(int argc, char *argv[])
     //******** CLIENT MODE: ********//
 
     try
-    {   
-        if (argv.contains("--t"))
+    {
+        bool found = false;
+        for (size_t i = 0; i < strlen(argv); ++i)
+        {
+            if (charArray[i] == "--t")
+            {
+                found = true;
+            }
+        }
+        if (found)
         {
             cert_authenticate_online(srv_ip);
-        }else
+        }
+        else
         {
             cert_authenticate_offline();
         }
@@ -1085,7 +1094,7 @@ int main(int argc, char *argv[])
                 try
                 {
 
-                   // cout << time(NULL) - ref << endl;
+                    // cout << time(NULL) - ref << endl;
                     // fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & ~O_NONBLOCK);
                     //  Get TCP connection status
                     status = read(client_fd, bufferTCP, MAXLINE);
