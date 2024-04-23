@@ -205,35 +205,73 @@ void cert_authenticate_online(const char *srv_ip)
 void cert_authenticate_offline()
 {
 
-    X509_STORE *store = X509_STORE_new();
-    if (!store)
-    {
-        perror("Error creating X509 store");
-        exit(EXIT_FAILURE);
+   X509* serverCert = NULL;
+    X509* caCert = NULL;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+
+    // Load server's certificate
+    FILE* file = fopen(VALIDATE_CERT, "r");
+    if (!file) {
+        perror("Error opening server certificate file");
+        return false;
+    }
+    serverCert = PEM_read_X509(file, NULL, NULL);
+    fclose(file);
+    if (!serverCert) {
+        ERR_print_errors_fp(stderr);
+        return false;
     }
 
-    X509_STORE_add_cert(store, SERVER_CA_CERT);
+    // Load CA certificate
+    file = fopen(SERVER_CA_CERT, "r");
+    if (!file) {
+        perror("Error opening CA certificate file");
+        X509_free(serverCert);
+        return false;
+    }
+    caCert = PEM_read_X509(file, NULL, NULL);
+    fclose(file);
+    if (!caCert) {
+        ERR_print_errors_fp(stderr);
+        X509_free(serverCert);
+        return false;
+    }
 
-    X509_STORE_CTX *ctx = X509_STORE_CTX_new();
-    if (!ctx)
-    {
-        perror("Error creating X509 store context");
+    // Create X509_STORE and add CA certificate
+    store = X509_STORE_new();
+    if (!store || X509_STORE_add_cert(store, caCert) != 1) {
+        perror("Error adding CA certificate to store");
+        X509_free(serverCert);
+        X509_free(caCert);
         X509_STORE_free(store);
-        exit(EXIT_FAILURE);
+        return false;
     }
-    FILE *valid_cert = fopen(VALIDATE_CERT, "r");
-    X509 *cert = PEM_read_X509(valid_cert, nullptr, nullptr, nullptr);
-    fclose(valid_cert);
 
-    X509_STORE_CTX_init(ctx, store, cert, nullptr);
-
-    int result = X509_verify_cert(ctx);
-    if (result != 1)
-    {
+    // Create X509_STORE_CTX
+    ctx = X509_STORE_CTX_new();
+    if (!ctx || X509_STORE_CTX_init(ctx, store, serverCert, NULL) != 1) {
+        perror("Error initializing X509_STORE_CTX");
+        X509_free(serverCert);
+        X509_free(caCert);
         X509_STORE_CTX_free(ctx);
         X509_STORE_free(store);
-        exit(EXIT_FAILURE);
+        return false;
     }
+
+    // Perform certificate verification
+    if (X509_verify_cert(ctx) != 1) {
+        perror("Certificate verification failed");
+        X509_free(serverCert);
+        X509_free(caCert);
+        X509_STORE_CTX_free(ctx);
+        X509_STORE_free(store);
+        return false;
+    }
+
+    // Clean up
+    X509_free(serverCert);
+    X509_free(caCert);
     X509_STORE_CTX_free(ctx);
     X509_STORE_free(store);
 }
