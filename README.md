@@ -44,7 +44,7 @@ The authentication take place automatically on start of encryptor.
 To be able to run the encryptor, libssl-dev and ca-certificates needs to be installed. If you run in the problems with certificate authentication,
 maybe adding the CA certificate into the truststore can solve the issue.
 ```bash
-sudo cp <certificatename>. crt /usr/local/share/ca-certificates/
+sudo cp [certificatename].crt /usr/local/share/ca-certificates/
 sudo update-ca-certificates
 ```
 
