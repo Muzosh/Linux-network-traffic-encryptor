@@ -1,0 +1,2 @@
+rekey_tcp_port = 61000
+data_udp_port = 62000
